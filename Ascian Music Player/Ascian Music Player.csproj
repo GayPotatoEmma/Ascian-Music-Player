@@ -15,7 +15,6 @@
     <Description>A music player to play your own music files from within the game.</Description>
 	<Tags>music</Tags>
 	<IconUrl>https://raw.githubusercontent.com/GayPotatoEmma/Ascian-Music-Player/refs/heads/master/Ascian%20Music%20Player/Images/logo.png</IconUrl>
-    <DalamudApiLevel>14</DalamudApiLevel>
   </PropertyGroup>
 
   <ItemGroup>
