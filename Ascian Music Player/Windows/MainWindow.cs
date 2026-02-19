@@ -308,7 +308,6 @@ namespace AscianMusicPlayer.Windows
                 ImGui.SetCursorPosX(ImGui.GetCursorPosX() + offset);
             }
 
-            // Shuffle button with conditional color
             Vector4? shuffleColor = _isShuffle ? new Vector4(0, 1, 0.5f, 1) : null;
             if (ImGuiComponents.IconButton(FontAwesomeIcon.Random, shuffleColor, activeColor: null, hoveredColor: null, size: new Vector2(40, 0)))
             {
@@ -320,7 +319,6 @@ namespace AscianMusicPlayer.Windows
             }
 
             ImGui.SameLine();
-            // Previous button
             if (ImGuiComponents.IconButton(FontAwesomeIcon.StepBackward, new Vector2(40, 0)))
             {
                 PlayPrevious();
@@ -331,18 +329,17 @@ namespace AscianMusicPlayer.Windows
             }
 
             ImGui.SameLine();
-            // Play/Pause button
             if (ImGuiComponents.IconButton(_plugin.AudioController.IsPlaying ? FontAwesomeIcon.Pause : FontAwesomeIcon.Play, new Vector2(40, 0)))
             {
                 if (_plugin.AudioController.IsPlaying)
                 {
                     _plugin.AudioController.Pause();
-                    _plugin.UpdateDtr(); // Update DTR when paused
+                    _plugin.UpdateDtr();
                 }
                 else if (_plugin.AudioController.IsPaused)
                 {
                     _plugin.AudioController.Resume();
-                    _plugin.UpdateDtr(); // Update DTR when resumed
+                    _plugin.UpdateDtr();
                 }
                 else if (_selectedSongIndex >= 0 && _selectedSongIndex < _songs.Count)
                 {
@@ -355,7 +352,6 @@ namespace AscianMusicPlayer.Windows
             }
 
             ImGui.SameLine();
-            // Next button
             if (ImGuiComponents.IconButton(FontAwesomeIcon.StepForward, new Vector2(40, 0)))
             {
                 PlayNext();
@@ -366,7 +362,6 @@ namespace AscianMusicPlayer.Windows
             }
 
             ImGui.SameLine();
-            // Repeat button with conditional color
             Vector4? repeatColor = _repeatMode != RepeatMode.Off ? new Vector4(0, 1, 0.5f, 1) : null;
             var repeatIcon = _repeatMode switch
             {
@@ -395,7 +390,6 @@ namespace AscianMusicPlayer.Windows
 
             ImGui.Spacing();
 
-            // Music Progress Bar - always visible
             float currentSeconds = (float)_plugin.AudioController.CurrentTime.TotalSeconds;
             float totalSeconds = (float)_plugin.AudioController.TotalTime.TotalSeconds;
 

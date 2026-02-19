@@ -9,7 +9,7 @@ namespace AscianMusicPlayer.Windows
     {
         private readonly Plugin _plugin;
         private string _mediaFolderInput = string.Empty;
-        private int _selectedChannel = 4; // Performance by default (index)
+        private int _selectedChannel = 4;
 
         private readonly string[] _channelNames = 
         {

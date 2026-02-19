@@ -99,7 +99,22 @@ namespace AscianMusicPlayer.Audio
 
         public void Play(Song song)
         {
-            Stop();
+            _bgmUnmuteCts?.Cancel();
+            _bgmUnmuteCts?.Dispose();
+            _bgmUnmuteCts = null;
+
+            if (_outputDevice != null)
+            {
+                _outputDevice.PlaybackStopped -= OnPlaybackStopped;
+                _outputDevice.Stop();
+                _outputDevice.Dispose();
+                _outputDevice = null;
+            }
+            if (_audioFile != null)
+            {
+                _audioFile.Dispose();
+                _audioFile = null;
+            }
 
             try
             {
@@ -107,9 +122,10 @@ namespace AscianMusicPlayer.Audio
                 _outputDevice = new WaveOutEvent();
                 _outputDevice.Init(_audioFile);
                 _outputDevice.PlaybackStopped += OnPlaybackStopped;
-                _outputDevice.Play();
 
                 UpdateVolume();
+
+                _outputDevice.Play();
 
                 if (Plugin.Settings.MuteBgmWhenPlaying)
                 {
@@ -159,14 +175,11 @@ namespace AscianMusicPlayer.Audio
                 if (Plugin.GameConfig.TryGet((SystemConfigOption)Plugin.Settings.MusicChannel, out uint channelVol))
                 {
                     float vol = channelVol / 100.0f;
+                    _currentVolume = vol;
 
-                    if (Math.Abs(_currentVolume - vol) > 0.001f)
+                    if (_audioFile != null)
                     {
-                        _currentVolume = vol;
-                        if (_audioFile != null)
-                        {
-                            _audioFile.Volume = _currentVolume;
-                        }
+                        _audioFile.Volume = _currentVolume;
                     }
                 }
             }
@@ -188,13 +201,13 @@ namespace AscianMusicPlayer.Audio
 
                     if (Plugin.GameConfig.TryGet(SystemConfigOption.SoundBgm, out uint currentVolume))
                     {
-                        _originalBgmVolume = currentVolume;
                         if (currentVolume > 0)
                         {
+                            _originalBgmVolume = currentVolume;
                             Plugin.GameConfig.Set(SystemConfigOption.SoundBgm, 0u);
-                            _weMutedGame = true;
                             Plugin.Log.Information($"Muted game BGM (was {currentVolume})");
                         }
+                        _weMutedGame = true;
                     }
                 }
                 else

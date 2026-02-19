@@ -114,7 +114,6 @@ namespace AscianMusicPlayer.Windows
             }
 
             ImGui.SameLine();
-            // Previous button
             if (ImGuiComponents.IconButton("##MiniPrevious", FontAwesomeIcon.StepBackward, new Vector2(40, 0)))
             {
                 _plugin.MainWindow.PlayPreviousPublic();
@@ -125,7 +124,6 @@ namespace AscianMusicPlayer.Windows
             }
 
             ImGui.SameLine();
-            // Play/Pause button
             if (ImGuiComponents.IconButton("##MiniPlayPause", _plugin.AudioController.IsPlaying ? FontAwesomeIcon.Pause : FontAwesomeIcon.Play, new Vector2(40, 0)))
             {
                 if (_plugin.AudioController.IsPlaying)
@@ -149,7 +147,6 @@ namespace AscianMusicPlayer.Windows
             }
 
             ImGui.SameLine();
-            // Next button
             if (ImGuiComponents.IconButton("##MiniNext", FontAwesomeIcon.StepForward, new Vector2(40, 0)))
             {
                 _plugin.MainWindow.PlayNextPublic();
@@ -160,14 +157,13 @@ namespace AscianMusicPlayer.Windows
             }
 
             ImGui.SameLine();
-            // Repeat button
             var repeatMode = _plugin.MainWindow.GetRepeatMode();
             Vector4? repeatColor = repeatMode != 0 ? new Vector4(0, 1, 0.5f, 1) : null;
             var repeatIcon = repeatMode switch
             {
-                0 => FontAwesomeIcon.Redo,      // Off
-                1 => FontAwesomeIcon.Redo,      // All
-                2 => FontAwesomeIcon.Music,     // One
+                0 => FontAwesomeIcon.Redo,
+                1 => FontAwesomeIcon.Redo,
+                2 => FontAwesomeIcon.Music,
                 _ => FontAwesomeIcon.Redo
             };
             if (ImGuiComponents.IconButton("##MiniRepeat", repeatIcon, repeatColor, activeColor: null, hoveredColor: null, size: new Vector2(40, 0)))
@@ -190,7 +186,6 @@ namespace AscianMusicPlayer.Windows
 
             ImGui.Spacing();
 
-            // Music Progress Bar
             float currentSeconds = (float)_plugin.AudioController.CurrentTime.TotalSeconds;
             float totalSeconds = (float)_plugin.AudioController.TotalTime.TotalSeconds;
             bool hasAudio = _plugin.AudioController.HasAudio;

@@ -14,7 +14,6 @@ namespace AscianMusicPlayer
     {
         public string Name => "Ascian Music Player";
 
-        // Services
         [PluginService] public static IDalamudPluginInterface PluginInterface { get; private set; } = null!;
         [PluginService] public static ICommandManager CommandManager { get; private set; } = null!;
         [PluginService] public static IGameConfig GameConfig { get; private set; } = null!;
