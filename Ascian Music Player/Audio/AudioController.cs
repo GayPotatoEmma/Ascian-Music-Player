@@ -2,6 +2,8 @@
 using System.IO;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using NAudio.Wave;
 using Dalamud.Game.Config;
 
@@ -14,6 +16,7 @@ namespace AscianMusicPlayer.Audio
         private float _currentVolume = 1.0f;
         private bool _weMutedGame = false;
         private uint _originalBgmVolume = 100;
+        private CancellationTokenSource? _bgmUnmuteCts;
 
         public event EventHandler? SongEnded;
 
@@ -188,6 +191,11 @@ namespace AscianMusicPlayer.Audio
             {
                 if (mute)
                 {
+                    // Cancel any pending unmute operation
+                    _bgmUnmuteCts?.Cancel();
+                    _bgmUnmuteCts?.Dispose();
+                    _bgmUnmuteCts = null;
+
                     // Save current BGM volume and mute
                     if (Plugin.GameConfig.TryGet(SystemConfigOption.SoundBgm, out uint currentVolume))
                     {
@@ -202,12 +210,32 @@ namespace AscianMusicPlayer.Audio
                 }
                 else
                 {
-                    // Restore BGM volume only if we muted it
+                    // Restore BGM volume only if we muted it, with a delay to prevent audio blips between songs
                     if (_weMutedGame)
                     {
-                        Plugin.GameConfig.Set(SystemConfigOption.SoundBgm, _originalBgmVolume);
-                        _weMutedGame = false;
-                        Plugin.Log.Information($"Restored game BGM to {_originalBgmVolume}");
+                        // Cancel any previous pending unmute
+                        _bgmUnmuteCts?.Cancel();
+                        _bgmUnmuteCts?.Dispose();
+
+                        _bgmUnmuteCts = new CancellationTokenSource();
+                        var token = _bgmUnmuteCts.Token;
+
+                        Task.Delay(300, token).ContinueWith(t =>
+                        {
+                            if (!t.IsCanceled && _weMutedGame)
+                            {
+                                try
+                                {
+                                    Plugin.GameConfig.Set(SystemConfigOption.SoundBgm, _originalBgmVolume);
+                                    _weMutedGame = false;
+                                    Plugin.Log.Information($"Restored game BGM to {_originalBgmVolume}");
+                                }
+                                catch (Exception ex)
+                                {
+                                    Plugin.Log.Error($"Failed to restore game BGM: {ex.Message}");
+                                }
+                            }
+                        }, TaskScheduler.Default);
                     }
                 }
             }
@@ -219,6 +247,9 @@ namespace AscianMusicPlayer.Audio
 
         public void Dispose()
         {
+            _bgmUnmuteCts?.Cancel();
+            _bgmUnmuteCts?.Dispose();
+            _bgmUnmuteCts = null;
             Stop();
         }
 
