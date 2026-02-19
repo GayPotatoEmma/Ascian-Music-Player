@@ -247,9 +247,26 @@ namespace AscianMusicPlayer.Audio
 
         public void Dispose()
         {
+            // Cancel any pending BGM unmute
             _bgmUnmuteCts?.Cancel();
             _bgmUnmuteCts?.Dispose();
             _bgmUnmuteCts = null;
+
+            // Immediately restore BGM if we muted it (don't wait for delay)
+            if (_weMutedGame)
+            {
+                try
+                {
+                    Plugin.GameConfig.Set(SystemConfigOption.SoundBgm, _originalBgmVolume);
+                    _weMutedGame = false;
+                    Plugin.Log.Information($"Restored game BGM to {_originalBgmVolume} on plugin unload");
+                }
+                catch (Exception ex)
+                {
+                    Plugin.Log.Error($"Failed to restore game BGM on dispose: {ex.Message}");
+                }
+            }
+
             Stop();
         }
 
