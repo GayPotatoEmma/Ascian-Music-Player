@@ -99,6 +99,8 @@ namespace AscianMusicPlayer
                 this.AudioController.UpdateVolume();
                 _lastVolumeCheck = now;
             }
+
+            this.AudioController.CheckBgmUnmute();
         }
 
         private void OnCommand(string command, string args)

@@ -2,8 +2,6 @@
 using System.IO;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using NAudio.Wave;
 using Dalamud.Game.Config;
 
@@ -16,7 +14,8 @@ namespace AscianMusicPlayer.Audio
         private float _currentVolume = 1.0f;
         private bool _weMutedGame = false;
         private uint _originalBgmVolume = 100;
-        private CancellationTokenSource? _bgmUnmuteCts;
+        private DateTime _bgmUnmuteTime = DateTime.MinValue;
+        private bool _pendingBgmUnmute = false;
 
         public event EventHandler? SongEnded;
 
@@ -99,9 +98,7 @@ namespace AscianMusicPlayer.Audio
 
         public void Play(Song song)
         {
-            _bgmUnmuteCts?.Cancel();
-            _bgmUnmuteCts?.Dispose();
-            _bgmUnmuteCts = null;
+            _pendingBgmUnmute = false;
 
             if (_outputDevice != null)
             {
@@ -195,9 +192,7 @@ namespace AscianMusicPlayer.Audio
             {
                 if (mute)
                 {
-                    _bgmUnmuteCts?.Cancel();
-                    _bgmUnmuteCts?.Dispose();
-                    _bgmUnmuteCts = null;
+                    _pendingBgmUnmute = false;
 
                     if (Plugin.GameConfig.TryGet(SystemConfigOption.SoundBgm, out uint currentVolume))
                     {
@@ -214,28 +209,8 @@ namespace AscianMusicPlayer.Audio
                 {
                     if (_weMutedGame)
                     {
-                        _bgmUnmuteCts?.Cancel();
-                        _bgmUnmuteCts?.Dispose();
-
-                        _bgmUnmuteCts = new CancellationTokenSource();
-                        var token = _bgmUnmuteCts.Token;
-
-                        Task.Delay(300, token).ContinueWith(t =>
-                        {
-                            if (!t.IsCanceled && _weMutedGame)
-                            {
-                                try
-                                {
-                                    Plugin.GameConfig.Set(SystemConfigOption.SoundBgm, _originalBgmVolume);
-                                    _weMutedGame = false;
-                                    Plugin.Log.Information($"Restored game BGM to {_originalBgmVolume}");
-                                }
-                                catch (Exception ex)
-                                {
-                                    Plugin.Log.Error($"Failed to restore game BGM: {ex.Message}");
-                                }
-                            }
-                        }, TaskScheduler.Default);
+                        _pendingBgmUnmute = true;
+                        _bgmUnmuteTime = DateTime.UtcNow.AddMilliseconds(300);
                     }
                 }
             }
@@ -245,11 +220,30 @@ namespace AscianMusicPlayer.Audio
             }
         }
 
+        public void CheckBgmUnmute()
+        {
+            if (_pendingBgmUnmute && DateTime.UtcNow >= _bgmUnmuteTime)
+            {
+                _pendingBgmUnmute = false;
+                if (_weMutedGame)
+                {
+                    try
+                    {
+                        Plugin.GameConfig.Set(SystemConfigOption.SoundBgm, _originalBgmVolume);
+                        _weMutedGame = false;
+                        Plugin.Log.Information($"Restored game BGM to {_originalBgmVolume}");
+                    }
+                    catch (Exception ex)
+                    {
+                        Plugin.Log.Error($"Failed to restore game BGM: {ex.Message}");
+                    }
+                }
+            }
+        }
+
         public void Dispose()
         {
-            _bgmUnmuteCts?.Cancel();
-            _bgmUnmuteCts?.Dispose();
-            _bgmUnmuteCts = null;
+            _pendingBgmUnmute = false;
 
             if (_weMutedGame)
             {
