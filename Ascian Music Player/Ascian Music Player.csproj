@@ -8,6 +8,7 @@
   <PropertyGroup>
     <Author>gaypotatoemma</Author>
     <Name>Ascian Music Player</Name>
+	<RepoUrl>https://github.com/GayPotatoEmma/Ascian-Music-Player</RepoUrl>
     <InternalName>AscianMusicPlayer</InternalName>
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
 	<Punchline>Even the Ascians needed some tunes.</Punchline>
