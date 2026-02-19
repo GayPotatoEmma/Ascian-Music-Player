@@ -28,4 +28,9 @@
       <Visible>false</Visible>
     </Content>
   </ItemGroup>
+	<ItemGroup>
+		<KnownFrameworkReference Update="Microsoft.WindowsDesktop.App" IsWindowsOnly="false" TargetingPackVersion="10.0.0" />
+		<KnownFrameworkReference Update="Microsoft.WindowsDesktop.App.WPF" IsWindowsOnly="false" TargetingPackVersion="10.0.0" />
+		<KnownFrameworkReference Update="Microsoft.WindowsDesktop.App.WindowsForms" IsWindowsOnly="false" TargetingPackVersion="10.0.0" />
+	</ItemGroup>
 </Project>
