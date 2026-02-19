@@ -301,6 +301,7 @@ namespace AscianMusicPlayer
         {
             Framework.Update -= OnFrameworkUpdate;
             _dtrEntry?.Remove();
+            this.MainWindow.Cleanup();
             this.AudioController.Dispose();
             this.WindowSystem.RemoveAllWindows();
             CommandManager.RemoveHandler("/amp");

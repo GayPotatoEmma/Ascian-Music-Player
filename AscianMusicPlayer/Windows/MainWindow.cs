@@ -54,10 +54,9 @@ namespace AscianMusicPlayer.Windows
             _plugin.AudioController.SongEnded += OnSongEnded;
         }
 
-        public override void OnClose()
+        public void Cleanup()
         {
             _plugin.AudioController.SongEnded -= OnSongEnded;
-            base.OnClose();
         }
 
         private void OnSongEnded(object? sender, EventArgs e)
