@@ -26,53 +26,44 @@ namespace AscianMusicPlayer.Windows
         {
             var currentSong = _plugin.MainWindow.GetCurrentSong();
 
-            // Now Playing Info - Single line with horizontal scroll
             if (currentSong != null)
             {
                 string songText = $"{currentSong.Title} - {currentSong.Artist}";
                 float windowWidth = ImGui.GetContentRegionAvail().X;
                 float textWidth = ImGui.CalcTextSize(songText).X;
 
-                // Reset scroll if song changed
                 if (songText != _lastSongText)
                 {
                     _scrollOffset = 0f;
                     _lastSongText = songText;
                 }
 
-                // If text exceeds window width, enable scrolling
                 if (textWidth > windowWidth)
                 {
-                    // Update scroll position (scroll speed: 30 pixels per second)
                     var now = DateTime.UtcNow;
                     float deltaTime = (float)(now - _lastScrollUpdate).TotalSeconds;
                     _lastScrollUpdate = now;
 
                     _scrollOffset += 30f * deltaTime;
 
-                    // Reset scroll when text has fully scrolled (add padding for smooth loop)
-                    float scrollLimit = textWidth + 50f; // 50px gap before repeating
+                    float scrollLimit = textWidth + 50f;
                     if (_scrollOffset > scrollLimit)
                     {
                         _scrollOffset = 0f;
                     }
 
-                    // Draw scrolling text using child window for clipping
                     ImGui.BeginChild("##ScrollingText", new Vector2(windowWidth, ImGui.GetTextLineHeight()), false, ImGuiWindowFlags.NoScrollbar);
 
-                    // Draw the text offset by scroll amount
                     ImGui.SetCursorPosX(-_scrollOffset);
                     ImGui.TextColored(new Vector4(0, 1, 0, 1), songText);
 
-                    // Draw second copy for seamless loop
-                    ImGui.SameLine(0, 50f); // 50px gap
+                    ImGui.SameLine(0, 50f);
                     ImGui.TextColored(new Vector4(0, 1, 0, 1), songText);
 
                     ImGui.EndChild();
                 }
                 else
                 {
-                    // Text fits, center it
                     float offset = (windowWidth - textWidth) / 2f;
                     if (offset > 0)
                     {
@@ -97,11 +88,9 @@ namespace AscianMusicPlayer.Windows
 
             ImGui.Spacing();
 
-            // Playback Controls - Centered
             ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(5, 5));
             ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(3, 0));
 
-            // Calculate centering offset (5 buttons * 40px width + 4 gaps * 3px spacing)
             float buttonWidth = 40f;
             float spacing = 3f;
             float totalWidth = (5 * buttonWidth) + (4 * spacing);
@@ -113,7 +102,6 @@ namespace AscianMusicPlayer.Windows
                 ImGui.SetCursorPosX(ImGui.GetCursorPosX() + offset2);
             }
 
-            // Shuffle button
             bool isShuffle = _plugin.MainWindow.IsShuffle;
             Vector4? shuffleColor = isShuffle ? new Vector4(0, 1, 0.5f, 1) : null;
             if (ImGuiComponents.IconButton("##MiniShuffle", FontAwesomeIcon.Random, shuffleColor, activeColor: null, hoveredColor: null, size: new Vector2(40, 0)))

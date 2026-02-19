@@ -38,7 +38,6 @@ namespace AscianMusicPlayer.Audio
         public void Pause()
         {
             _outputDevice?.Pause();
-            // Restore game BGM when pausing music
             if (Plugin.Settings.MuteBgmWhenPlaying)
             {
                 MuteBgm(false);
@@ -48,7 +47,6 @@ namespace AscianMusicPlayer.Audio
         public void Resume()
         {
             _outputDevice?.Play();
-            // Mute game BGM when resuming music
             if (Plugin.Settings.MuteBgmWhenPlaying)
             {
                 MuteBgm(true);
@@ -57,7 +55,6 @@ namespace AscianMusicPlayer.Audio
 
         public AudioController()
         {
-            // No initialization needed for basic approach
         }
 
         public List<Song> LoadSongs(string folderPath)
@@ -69,7 +66,6 @@ namespace AscianMusicPlayer.Audio
                 ? SearchOption.AllDirectories 
                 : SearchOption.TopDirectoryOnly;
             
-            // Use EnumerateFiles instead of GetFiles - lazy enumeration
             var files = Directory.EnumerateFiles(folderPath, "*.*", searchOption)
                 .Where(s => 
                 {
@@ -113,10 +109,8 @@ namespace AscianMusicPlayer.Audio
                 _outputDevice.PlaybackStopped += OnPlaybackStopped;
                 _outputDevice.Play();
 
-                // Sync to performance volume instead of BGM
                 UpdateVolume();
 
-                // Mute game BGM only if setting is enabled
                 if (Plugin.Settings.MuteBgmWhenPlaying)
                 {
                     MuteBgm(true);
@@ -130,7 +124,6 @@ namespace AscianMusicPlayer.Audio
 
         private void OnPlaybackStopped(object? sender, StoppedEventArgs e)
         {
-            // If playback stopped naturally (not by user), trigger song ended event
             if (e.Exception == null)
             {
                 SongEnded?.Invoke(this, EventArgs.Empty);
@@ -156,7 +149,6 @@ namespace AscianMusicPlayer.Audio
                 _audioFile = null;
             }
 
-            // Restore game BGM
             MuteBgm(false);
         }
 
@@ -167,8 +159,7 @@ namespace AscianMusicPlayer.Audio
                 if (Plugin.GameConfig.TryGet((SystemConfigOption)Plugin.Settings.MusicChannel, out uint channelVol))
                 {
                     float vol = channelVol / 100.0f;
-                    
-                    // Only update if volume actually changed
+
                     if (Math.Abs(_currentVolume - vol) > 0.001f)
                     {
                         _currentVolume = vol;
@@ -191,12 +182,10 @@ namespace AscianMusicPlayer.Audio
             {
                 if (mute)
                 {
-                    // Cancel any pending unmute operation
                     _bgmUnmuteCts?.Cancel();
                     _bgmUnmuteCts?.Dispose();
                     _bgmUnmuteCts = null;
 
-                    // Save current BGM volume and mute
                     if (Plugin.GameConfig.TryGet(SystemConfigOption.SoundBgm, out uint currentVolume))
                     {
                         _originalBgmVolume = currentVolume;
@@ -210,10 +199,8 @@ namespace AscianMusicPlayer.Audio
                 }
                 else
                 {
-                    // Restore BGM volume only if we muted it, with a delay to prevent audio blips between songs
                     if (_weMutedGame)
                     {
-                        // Cancel any previous pending unmute
                         _bgmUnmuteCts?.Cancel();
                         _bgmUnmuteCts?.Dispose();
 
@@ -247,12 +234,10 @@ namespace AscianMusicPlayer.Audio
 
         public void Dispose()
         {
-            // Cancel any pending BGM unmute
             _bgmUnmuteCts?.Cancel();
             _bgmUnmuteCts?.Dispose();
             _bgmUnmuteCts = null;
 
-            // Immediately restore BGM if we muted it (don't wait for delay)
             if (_weMutedGame)
             {
                 try
@@ -272,20 +257,16 @@ namespace AscianMusicPlayer.Audio
 
         public void ApplySettingsChange()
         {
-            // If music is currently playing, reapply BGM muting based on current settings
             if (IsPlaying)
             {
-                // Check if BGM should be muted based on new settings
                 bool shouldMuteBgm = Plugin.Settings.MuteBgmWhenPlaying && Plugin.Settings.MusicChannel != 175;
 
                 if (shouldMuteBgm && !_weMutedGame)
                 {
-                    // Settings now require BGM to be muted, but it's not - mute it
                     MuteBgm(true);
                 }
                 else if (!shouldMuteBgm && _weMutedGame)
                 {
-                    // Settings no longer require BGM to be muted, but it is - restore it
                     MuteBgm(false);
                 }
             }

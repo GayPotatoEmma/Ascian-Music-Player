@@ -38,7 +38,7 @@ namespace AscianMusicPlayer.Windows
 
             _mediaFolderInput = Plugin.Settings.MediaFolder;
             _selectedChannel = System.Array.IndexOf(_channelIds, Plugin.Settings.MusicChannel);
-            if (_selectedChannel < 0) _selectedChannel = 4; // Default to Performance
+            if (_selectedChannel < 0) _selectedChannel = 4;
         }
 
         public override void Draw()
@@ -46,7 +46,6 @@ namespace AscianMusicPlayer.Windows
             ImGui.Text("Music Playback Settings");
             ImGui.Separator();
 
-            // Music Channel Selection
             ImGui.Text("Music Channel:");
             ImGui.SetNextItemWidth(250);
             if (ImGui.Combo("##MusicChannel", ref _selectedChannel, _channelNames, _channelNames.Length))
@@ -60,7 +59,6 @@ namespace AscianMusicPlayer.Windows
             ImGui.Separator();
             ImGui.Spacing();
 
-            // Mute BGM Option
             bool muteBgm = Plugin.Settings.MuteBgmWhenPlaying;
 
             if (ImGui.Checkbox("Mute BGM when playing music", ref muteBgm))
@@ -72,7 +70,6 @@ namespace AscianMusicPlayer.Windows
 
             ImGui.Spacing();
 
-            // Show in DTR Option
             bool showInDtr = Plugin.Settings.ShowInDtr;
 
             if (ImGui.Checkbox("Show current song in Server Info Bar", ref showInDtr))
@@ -86,17 +83,12 @@ namespace AscianMusicPlayer.Windows
             ImGui.Separator();
             ImGui.Spacing();
 
-            // Media Folder:
             ImGui.Text("Media Folder:");
             ImGui.SetNextItemWidth(250);
-            if (ImGui.InputText("##MediaFolder", ref _mediaFolderInput, 260))
-            {
-                // Allow editing
-            }
+            ImGui.InputText("##MediaFolder", ref _mediaFolderInput, 260);
 
             ImGui.Spacing();
 
-            // Scan Subfolders checkbox
             bool searchSubfolders = Plugin.Settings.SearchSubfolders;
             if (ImGui.Checkbox("Scan subfolders", ref searchSubfolders))
             {

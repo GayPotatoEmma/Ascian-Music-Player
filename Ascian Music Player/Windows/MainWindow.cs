@@ -6,7 +6,6 @@ using AscianMusicPlayer.Audio;
 using Dalamud.Interface;
 using Dalamud.Interface.Components;
 using Dalamud.Interface.Windowing;
-// Use the Dalamud bindings instead of standard ImGuiNET
 using Dalamud.Bindings.ImGui;
 
 namespace AscianMusicPlayer.Windows
@@ -46,32 +45,26 @@ namespace AscianMusicPlayer.Windows
                 MaximumSize = new Vector2(float.MaxValue, float.MaxValue)
             };
 
-            // This now uses the correct Dalamud.Bindings.ImGui.ImGuiCond
             this.SizeCondition = ImGuiCond.FirstUseEver;
 
-            // Enable menu bar
             this.Flags |= ImGuiWindowFlags.MenuBar;
 
             _mediaFolder = Plugin.Settings.MediaFolder;
 
-            // Subscribe to song ended event
             _plugin.AudioController.SongEnded += OnSongEnded;
         }
 
         public override void OnClose()
         {
-            // Unsubscribe from event
             _plugin.AudioController.SongEnded -= OnSongEnded;
             base.OnClose();
         }
 
         private void OnSongEnded(object? sender, EventArgs e)
         {
-            // Handle what to play next based on repeat mode
             switch (_repeatMode)
             {
                 case RepeatMode.One:
-                    // Replay the same song
                     if (_currentSong != null)
                     {
                         PlaySong(_currentSong);
@@ -79,20 +72,16 @@ namespace AscianMusicPlayer.Windows
                     break;
 
                 case RepeatMode.All:
-                    // Play next song in the list
                     PlayNext();
                     break;
 
                 case RepeatMode.Off:
-                    // Play next song, but stop if we reach the end
                     if (_isShuffle)
                     {
-                        // In shuffle mode, just play the next song in shuffle queue
                         PlayNext();
                     }
                     else
                     {
-                        // In normal mode, only play next if not at the end
                         if (_selectedSongIndex < _songs.Count - 1)
                         {
                             PlayNext();
@@ -106,7 +95,7 @@ namespace AscianMusicPlayer.Windows
         {
             _songs = _plugin.AudioController.LoadSongs(Plugin.Settings.MediaFolder);
             _mediaFolder = Plugin.Settings.MediaFolder;
-            _sortDirty = true; // Mark sort as dirty to apply default sorting
+            _sortDirty = true;
         }
 
         public Song? GetCurrentSong()
@@ -119,15 +108,13 @@ namespace AscianMusicPlayer.Windows
             _currentSong = song;
             _selectedSongIndex = _songs.IndexOf(song);
             _plugin.AudioController.Play(song);
-            _plugin.UpdateDtr(); // Update DTR with new song
+            _plugin.UpdateDtr();
 
-            // Update shuffle position if shuffle is on
             if (_isShuffle && _shuffleQueue.Count > 0)
             {
                 _shufflePosition = _shuffleQueue.IndexOf(_selectedSongIndex);
                 if (_shufflePosition == -1)
                 {
-                    // Song not in shuffle queue, regenerate
                     GenerateShuffleQueue();
                 }
             }
@@ -135,17 +122,15 @@ namespace AscianMusicPlayer.Windows
 
         private void GenerateShuffleQueue()
         {
-            // Only regenerate if count changed
             if (_shuffleQueue.Count == _songs.Count && _lastShuffleCount == _songs.Count)
                 return;
-                
+
             _shuffleQueue.Clear();
             for (int i = 0; i < _songs.Count; i++)
             {
                 _shuffleQueue.Add(i);
             }
 
-            // Fisher-Yates shuffle
             for (int i = _shuffleQueue.Count - 1; i > 0; i--)
             {
                 int j = _random.Next(i + 1);
@@ -223,7 +208,6 @@ namespace AscianMusicPlayer.Windows
             _repeatMode = (RepeatMode)(((int)_repeatMode + 1) % 3);
         }
 
-        // Public methods for MiniPlayer access
         public bool IsShuffle => _isShuffle;
         public int GetRepeatMode() => (int)_repeatMode;
 
@@ -248,7 +232,6 @@ namespace AscianMusicPlayer.Windows
 
         public override void Draw()
         {
-            // Menu bar
             if (ImGui.BeginMenuBar())
             {
                 if (ImGui.MenuItem("Settings"))
@@ -301,8 +284,8 @@ namespace AscianMusicPlayer.Windows
                         Plugin.Settings.AlbumColumnWidth = 100;
                         Plugin.Settings.LengthColumnWidth = 85;
                         Plugin.Settings.Save();
-                        _tableResetCounter++; // Force table to reset with new ID
-                        _skipNextColumnSave = true; // Don't save ImGui's calculated widths after reset
+                        _tableResetCounter++;
+                        _skipNextColumnSave = true;
                     }
 
                     ImGui.EndMenu();
@@ -311,11 +294,9 @@ namespace AscianMusicPlayer.Windows
                 ImGui.EndMenuBar();
             }
 
-            // Playback Controls - Centered
             ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(5, 5));
             ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(3, 0));
 
-            // Calculate centering offset (5 buttons * 40px width + 4 gaps * 3px spacing)
             float buttonWidth = 40f;
             float spacing = 3f;
             float totalWidth = (5 * buttonWidth) + (4 * spacing);
@@ -442,7 +423,6 @@ namespace AscianMusicPlayer.Windows
 
             ImGui.Spacing();
 
-            // Now Playing Info
             if (_currentSong != null)
             {
                 ImGui.TextColored(new Vector4(0, 1, 0, 1), $"Now Playing: {_currentSong.Title} - {_currentSong.Artist}");
@@ -458,15 +438,13 @@ namespace AscianMusicPlayer.Windows
 
             ImGui.Spacing();
 
-            // Count visible columns
-            int columnCount = 1; // Title always visible
+            int columnCount = 1;
             if (Plugin.Settings.ShowArtistColumn) columnCount++;
             if (Plugin.Settings.ShowAlbumColumn) columnCount++;
             if (Plugin.Settings.ShowLengthColumn) columnCount++;
 
             if (ImGui.BeginTable($"SongTable##{_tableResetCounter}", columnCount, ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.ScrollY | ImGuiTableFlags.Resizable | ImGuiTableFlags.Sortable))
             {
-                // Title column with stretch but also minimum width
                 ImGui.TableSetupColumn("Title", ImGuiTableColumnFlags.WidthStretch | ImGuiTableColumnFlags.NoHide | ImGuiTableColumnFlags.DefaultSort | ImGuiTableColumnFlags.PreferSortAscending);
 
                 if (Plugin.Settings.ShowArtistColumn)
@@ -484,21 +462,19 @@ namespace AscianMusicPlayer.Windows
 
                 ImGui.TableHeadersRow();
 
-                // Handle sorting
                 var sortSpecs = ImGui.TableGetSortSpecs();
                 if (sortSpecs.SpecsDirty || _sortDirty)
                 {
-                    if (_songs.Count > 1) // No point sorting 0 or 1 songs
+                    if (_songs.Count > 1)
                     {
                         if (_songs.Count > 0 && sortSpecs.Specs.ColumnIndex >= 0)
                         {
                             var spec = sortSpecs.Specs;
                             bool ascending = spec.SortDirection == ImGuiSortDirection.Ascending;
 
-                            // Determine which column to sort by
                             int actualColumnIndex = spec.ColumnIndex;
 
-                            if (actualColumnIndex == 0) // Title
+                            if (actualColumnIndex == 0)
                             {
                                 _songs = ascending 
                                     ? _songs.OrderBy(s => s.Title).ToList()
@@ -506,7 +482,6 @@ namespace AscianMusicPlayer.Windows
                             }
                             else
                             {
-                                // Adjust for hidden columns
                                 int visibleCol = 1;
                                 if (Plugin.Settings.ShowArtistColumn)
                                 {
@@ -577,10 +552,8 @@ namespace AscianMusicPlayer.Windows
                     }
                 }
 
-                // Save column widths if they changed (only when mouse is released to avoid constant saving)
                 if (ImGui.IsMouseReleased(ImGuiMouseButton.Left))
                 {
-                    // Skip saving if we just reset defaults (ImGui calculates widths that may differ from our defaults)
                     if (_skipNextColumnSave)
                     {
                         _skipNextColumnSave = false;
@@ -620,8 +593,7 @@ namespace AscianMusicPlayer.Windows
                             needsSave = true;
                         }
                     }
-                    
-                    // Save once instead of 3 times
+
                     if (needsSave)
                     {
                         Plugin.Settings.Save();

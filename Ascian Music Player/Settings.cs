@@ -8,10 +8,9 @@ namespace AscianMusicPlayer
     {
         public string MediaFolder { get; set; } = string.Empty;
         public bool SearchSubfolders { get; set; } = false;
-        public uint MusicChannel { get; set; } = 180; // Performance (SoundPerform) by default
+        public uint MusicChannel { get; set; } = 180;
         public bool MuteBgmWhenPlaying { get; set; } = true;
 
-        // Table column settings
         public float TitleColumnWidth { get; set; } = 0;
         public float ArtistColumnWidth { get; set; } = 100;
         public float AlbumColumnWidth { get; set; } = 100;
@@ -21,16 +20,14 @@ namespace AscianMusicPlayer
         public bool ShowAlbumColumn { get; set; } = true;
         public bool ShowLengthColumn { get; set; } = true;
 
-        // DTR (Server Info Bar) settings
         public bool ShowInDtr { get; set; } = false;
 
-        // Music channel constants
-        public const uint ChannelBgm = 175;           // SoundBgm
-        public const uint ChannelSe = 176;            // SoundSe
-        public const uint ChannelVoice = 177;         // SoundVoice
-        public const uint ChannelEnv = 178;           // SoundEnv
-        public const uint ChannelSystem = 179;        // SoundSystem
-        public const uint ChannelPerform = 180;       // SoundPerform
+        public const uint ChannelBgm = 175;
+        public const uint ChannelSe = 176;
+        public const uint ChannelVoice = 177;
+        public const uint ChannelEnv = 178;
+        public const uint ChannelSystem = 179;
+        public const uint ChannelPerform = 180;
 
         private static readonly string SettingsPath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),

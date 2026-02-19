@@ -40,13 +40,10 @@ namespace AscianMusicPlayer
 
         public Plugin()
         {
-            // Load settings from disk
             Settings = Settings.LoadSettings();
 
-            // Initialize Audio Controller
             this.AudioController = new AudioController();
 
-            // Set up UI
             this.MainWindow = new MainWindow(this);
             this.SettingsWindow = new SettingsWindow(this);
             this.MiniPlayerWindow = new MiniPlayerWindow(this);
@@ -55,7 +52,6 @@ namespace AscianMusicPlayer
             this.WindowSystem.AddWindow(this.SettingsWindow);
             this.WindowSystem.AddWindow(this.MiniPlayerWindow);
 
-            // Auto-load songs from saved media folder if it exists
             if (!string.IsNullOrEmpty(Settings.MediaFolder))
             {
                 try
@@ -69,7 +65,6 @@ namespace AscianMusicPlayer
                 }
             }
 
-            // Register Commands
             CommandManager.AddHandler("/amp", new CommandInfo(OnCommand)
             {
                 HelpMessage = "Opens the main Ascian Music Player window.\n     Music controls: /amp [play|pause|next|previous|shuffle|repeat]"
@@ -85,15 +80,12 @@ namespace AscianMusicPlayer
                 HelpMessage = "Opens the Ascian Music Player settings."
             });
 
-            // Register UI Draw
             PluginInterface.UiBuilder.Draw += DrawUI;
             PluginInterface.UiBuilder.OpenMainUi += DrawMainUI;
             PluginInterface.UiBuilder.OpenConfigUi += DrawConfigUI;
 
-            // Register Update Loop for Volume Sync and DTR update
             Framework.Update += OnFrameworkUpdate;
 
-            // Initialize DTR entry if enabled
             if (Settings.ShowInDtr)
             {
                 InitializeDtr();
@@ -102,7 +94,6 @@ namespace AscianMusicPlayer
 
         private void OnFrameworkUpdate(IFramework framework)
         {
-            // Check volume every 250ms instead of every frame
             var now = DateTime.UtcNow;
             if ((now - _lastVolumeCheck).TotalMilliseconds >= 250)
             {
@@ -117,7 +108,6 @@ namespace AscianMusicPlayer
 
             if (argList.Length == 0)
             {
-                // No arguments, toggle main window
                 this.MainWindow.Toggle();
                 return;
             }
@@ -225,12 +215,10 @@ namespace AscianMusicPlayer
         {
             try
             {
-                // Left click toggles the main window
                 if (e.ClickType == MouseClickType.Left)
                 {
                     MainWindow.Toggle();
                 }
-                // Right click pauses/plays music
                 else if (e.ClickType == MouseClickType.Right)
                 {
                     if (AudioController.IsPlaying)
@@ -278,8 +266,7 @@ namespace AscianMusicPlayer
                     newText = "♪ --";
                     newTooltip = "Ascian Music Player";
                 }
-                
-                // Only update if changed
+
                 if (newText != _lastDtrText)
                 {
                     _dtrEntry.Text = newText;
