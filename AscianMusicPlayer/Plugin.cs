@@ -39,7 +39,7 @@ namespace AscianMusicPlayer
 
         public Plugin()
         {
-            Settings = Settings.LoadSettings();
+            Settings = PluginInterface.GetPluginConfig() as Settings ?? new Settings();
 
             this.AudioController = new AudioController();
 
