@@ -131,7 +131,16 @@ namespace AscianMusicPlayer.Audio
             }
             catch (Exception ex)
             {
-                Plugin.Log.Error($"Error playing audio: {ex.Message}");
+                Plugin.Log.Error(ex, $"Error playing audio: {song.FilePath}");
+
+                Plugin.NotificationManager.AddNotification(new Dalamud.Interface.ImGuiNotification.Notification
+                {
+                    Content = $"Failed to play: {song.Title}\nError: {ex.Message}",
+                    Type = Dalamud.Interface.ImGuiNotification.NotificationType.Error,
+                    Minimized = false
+                });
+
+                SongEnded?.Invoke(this, EventArgs.Empty);
             }
         }
 

@@ -4,6 +4,7 @@ using Dalamud.Interface;
 using Dalamud.Interface.Components;
 using Dalamud.Interface.Windowing;
 using Dalamud.Bindings.ImGui;
+using Dalamud.Interface.Utility.Raii;
 
 namespace AscianMusicPlayer.Windows
 {
@@ -190,24 +191,17 @@ namespace AscianMusicPlayer.Windows
             float totalSeconds = (float)_plugin.AudioController.TotalTime.TotalSeconds;
             bool hasAudio = _plugin.AudioController.HasAudio;
 
-            if (!hasAudio)
+            using (ImRaii.Disabled(!hasAudio))
             {
-                ImGui.BeginDisabled();
-            }
+                using var itemWidth = ImRaii.ItemWidth(-1);
 
-            ImGui.PushItemWidth(-1);
-            if (ImGui.SliderFloat("##MiniProgress", ref currentSeconds, 0, Math.Max(totalSeconds, 1), FormatTime(currentSeconds)))
-            {
-                if (hasAudio)
+                if (ImGui.SliderFloat("##MiniProgress", ref currentSeconds, 0, Math.Max(totalSeconds, 1), FormatTime(currentSeconds)))
                 {
-                    _plugin.AudioController.SetPosition(TimeSpan.FromSeconds(currentSeconds));
+                    if (hasAudio)
+                    {
+                        _plugin.AudioController.SetPosition(TimeSpan.FromSeconds(currentSeconds));
+                    }
                 }
-            }
-            ImGui.PopItemWidth();
-
-            if (!hasAudio)
-            {
-                ImGui.EndDisabled();
             }
         }
 

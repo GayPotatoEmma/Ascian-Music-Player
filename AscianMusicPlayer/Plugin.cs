@@ -19,10 +19,8 @@ namespace AscianMusicPlayer
         [PluginService] public static IGameConfig GameConfig { get; private set; } = null!;
         [PluginService] public static IPluginLog Log { get; private set; } = null!;
         [PluginService] public static IFramework Framework { get; private set; } = null!;
-        [PluginService] public static IGameGui GameGui { get; private set; } = null!;
-        [PluginService] public static IGameInteropProvider GameInteropProvider { get; private set; } = null!;
-        [PluginService] public static ITextureProvider TextureProvider { get; private set; } = null!;
         [PluginService] public static IDtrBar DtrBar { get; private set; } = null!;
+        [PluginService] public static INotificationManager NotificationManager { get; private set; } = null!;
 
         public static Settings Settings { get; private set; } = null!;
 
@@ -105,7 +103,7 @@ namespace AscianMusicPlayer
 
         private void OnCommand(string command, string args)
         {
-            var argList = args.Trim().ToLower().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            var argList = args.Trim().ToLowerInvariant().Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
             if (argList.Length == 0)
             {
@@ -302,6 +300,9 @@ namespace AscianMusicPlayer
         public void Dispose()
         {
             Framework.Update -= OnFrameworkUpdate;
+            PluginInterface.UiBuilder.Draw -= DrawUI;
+            PluginInterface.UiBuilder.OpenMainUi -= DrawMainUI;
+            PluginInterface.UiBuilder.OpenConfigUi -= DrawConfigUI;
             _dtrEntry?.Remove();
             this.MainWindow.Cleanup();
             this.AudioController.Dispose();
