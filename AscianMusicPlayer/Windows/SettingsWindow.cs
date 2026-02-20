@@ -2,6 +2,7 @@ using System;
 using System.Numerics;
 using Dalamud.Interface.Windowing;
 using Dalamud.Bindings.ImGui;
+using Dalamud.Utility;
 
 namespace AscianMusicPlayer.Windows
 {
@@ -32,7 +33,7 @@ namespace AscianMusicPlayer.Windows
         public SettingsWindow(Plugin plugin) : base("Ascian Music Player Settings###AscianMusicPlayerSettings")
         {
             _plugin = plugin;
-            this.Size = new Vector2(275, 335);
+            this.Size = new Vector2(275, 365);
             this.SizeCondition = ImGuiCond.Always;
             this.Flags = ImGuiWindowFlags.NoResize;
 
@@ -86,6 +87,13 @@ namespace AscianMusicPlayer.Windows
             ImGui.Text("Media Folder:");
             ImGui.SetNextItemWidth(250);
             ImGui.InputText("##MediaFolder", ref _mediaFolderInput, 260);
+
+            if (Util.IsWine())
+            {
+                ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1.0f, 0.8f, 0.0f, 1.0f));
+                ImGui.TextWrapped("24-bit audio formats may have trouble playing under Wine.");
+                ImGui.PopStyleColor();
+            }
 
             ImGui.Spacing();
 
