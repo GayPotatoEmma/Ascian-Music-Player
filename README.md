@@ -12,6 +12,8 @@
 - A simple mini player for whenever you don't need to see the entire list
 - Option to automatically mute ingame music
 - Choose which channel the music comes through so you can use the ingame volume sliders
+> [!WARNING]
+> 24-bit audio files may have trouble playing if you run the game through Wine.
 
 ## How to use
 - Open the main plugin window
