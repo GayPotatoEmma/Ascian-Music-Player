@@ -3,6 +3,7 @@ using System.Numerics;
 using Dalamud.Interface.Windowing;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Utility;
+using Dalamud.Interface.ImGuiFileDialog;
 
 namespace AscianMusicPlayer.Windows
 {
@@ -11,8 +12,9 @@ namespace AscianMusicPlayer.Windows
         private readonly Plugin _plugin;
         private string _mediaFolderInput = string.Empty;
         private int _selectedChannel = 4;
+        private readonly FileDialogManager _fileDialogManager;
 
-        private readonly string[] _channelNames = 
+        private readonly string[] _channelNames =
         {
             "Sound Effects",
             "Voice",
@@ -40,10 +42,14 @@ namespace AscianMusicPlayer.Windows
             _mediaFolderInput = Plugin.Settings.MediaFolder;
             _selectedChannel = System.Array.IndexOf(_channelIds, Plugin.Settings.MusicChannel);
             if (_selectedChannel < 0) _selectedChannel = 4;
+
+            _fileDialogManager = new FileDialogManager();
         }
 
         public override void Draw()
         {
+            _fileDialogManager.Draw();
+
             ImGui.Text("Music Playback Settings");
             ImGui.Separator();
 
@@ -85,8 +91,20 @@ namespace AscianMusicPlayer.Windows
             ImGui.Spacing();
 
             ImGui.Text("Media Folder:");
-            ImGui.SetNextItemWidth(250);
+            ImGui.SetNextItemWidth(180);
             ImGui.InputText("##MediaFolder", ref _mediaFolderInput, 260);
+
+            ImGui.SameLine();
+            if (ImGui.Button("Browse..."))
+            {
+                _fileDialogManager.OpenFolderDialog("Select Music Folder", (success, path) =>
+                {
+                    if (success && !string.IsNullOrEmpty(path))
+                    {
+                        _mediaFolderInput = path;
+                    }
+                }, Plugin.Settings.MediaFolder);
+            }
 
             if (Util.IsWine())
             {
