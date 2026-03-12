@@ -539,6 +539,7 @@ namespace AscianMusicPlayer.Windows
                                 _songs = ascending 
                                     ? _songs.OrderBy(s => s.Title).ToList()
                                     : _songs.OrderByDescending(s => s.Title).ToList();
+                                RefreshDisplaySongs();
                             }
                             else
                             {
