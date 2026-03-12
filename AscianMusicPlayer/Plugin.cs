@@ -102,11 +102,14 @@ namespace AscianMusicPlayer
 
         private void OnFrameworkUpdate(IFramework framework)
         {
-            var now = DateTime.UtcNow;
-            if ((now - _lastVolumeCheck).TotalMilliseconds >= 250)
+            if (Settings.BindToGameVolume)
             {
-                this.AudioController.UpdateVolume();
-                _lastVolumeCheck = now;
+                var now = DateTime.UtcNow;
+                if ((now - _lastVolumeCheck).TotalMilliseconds >= 250)
+                {
+                    this.AudioController.UpdateVolume();
+                    _lastVolumeCheck = now;
+                }
             }
 
             this.AudioController.CheckBgmUnmute();

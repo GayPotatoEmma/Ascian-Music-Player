@@ -13,6 +13,9 @@ namespace AscianMusicPlayer
         public uint MusicChannel { get; set; } = 180;
         public bool MuteBgmWhenPlaying { get; set; } = true;
 
+        public bool BindToGameVolume { get; set; } = true;
+        public float MusicVolume { get; set; } = 100f;
+
         public float TitleColumnWidth { get; set; } = 0;
         public float ArtistColumnWidth { get; set; } = 100;
         public float AlbumColumnWidth { get; set; } = 100;

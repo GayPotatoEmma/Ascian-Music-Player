@@ -178,20 +178,34 @@ namespace AscianMusicPlayer.Audio
         {
             try
             {
-                if (Plugin.GameConfig.TryGet((SystemConfigOption)Plugin.Settings.MusicChannel, out uint channelVol))
-                {
-                    float vol = channelVol / 100.0f;
-                    _currentVolume = vol;
+                float vol;
 
-                    if (_audioFile != null)
+                if (Plugin.Settings.BindToGameVolume)
+                {
+                    if (Plugin.GameConfig.TryGet((SystemConfigOption)Plugin.Settings.MusicChannel, out uint channelVol))
                     {
-                        _audioFile.Volume = _currentVolume;
+                        vol = channelVol / 100.0f;
                     }
+                    else
+                    {
+                        vol = 1.0f;
+                    }
+                }
+                else
+                {
+                    vol = Plugin.Settings.MusicVolume / 100.0f;
+                }
+
+                _currentVolume = vol;
+
+                if (_audioFile != null)
+                {
+                    _audioFile.Volume = _currentVolume;
                 }
             }
             catch (Exception ex)
             {
-                Plugin.Log.Warning($"Failed to read music channel volume: {ex.Message}");
+                Plugin.Log.Warning($"Failed to update volume: {ex.Message}");
             }
         }
 

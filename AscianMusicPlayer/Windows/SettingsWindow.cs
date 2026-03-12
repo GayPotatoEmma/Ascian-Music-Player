@@ -35,7 +35,7 @@ namespace AscianMusicPlayer.Windows
         public SettingsWindow(Plugin plugin) : base("Ascian Music Player Settings###AscianMusicPlayerSettings")
         {
             _plugin = plugin;
-            this.Size = new Vector2(275, 365);
+            this.Size = new Vector2(275, 420);
             this.SizeCondition = ImGuiCond.Always;
             this.Flags = ImGuiWindowFlags.NoResize;
 
@@ -50,21 +50,46 @@ namespace AscianMusicPlayer.Windows
         {
             _fileDialogManager.Draw();
 
-            ImGui.Text("Music Playback Settings");
+            ImGui.Text("Volume Settings");
             ImGui.Separator();
 
-            ImGui.Text("Music Channel:");
-            ImGui.SetNextItemWidth(250);
-            if (ImGui.Combo("##MusicChannel", ref _selectedChannel, _channelNames, _channelNames.Length))
+            bool bindToGameVolume = Plugin.Settings.BindToGameVolume;
+            if (ImGui.Checkbox("Bind to Game Volume", ref bindToGameVolume))
             {
-                Plugin.Settings.MusicChannel = _channelIds[_selectedChannel];
+                Plugin.Settings.BindToGameVolume = bindToGameVolume;
                 _plugin.SaveSettings();
-                _plugin.AudioController.ApplySettingsChange();
+                _plugin.AudioController.UpdateVolume();
+            }
+
+            if (!Plugin.Settings.BindToGameVolume)
+            {
+                float musicVolume = Plugin.Settings.MusicVolume;
+                ImGui.SetNextItemWidth(180);
+                if (ImGui.SliderFloat("Volume", ref musicVolume, 0f, 100f, "%.0f%%"))
+                {
+                    Plugin.Settings.MusicVolume = musicVolume;
+                    _plugin.SaveSettings();
+                    _plugin.AudioController.UpdateVolume();
+                }
+            }
+            else
+            {
+                ImGui.Text("Music Channel:");
+                ImGui.SetNextItemWidth(180);
+                if (ImGui.Combo("##MusicChannel", ref _selectedChannel, _channelNames, _channelNames.Length))
+                {
+                    Plugin.Settings.MusicChannel = _channelIds[_selectedChannel];
+                    _plugin.SaveSettings();
+                    _plugin.AudioController.ApplySettingsChange();
+                }
             }
 
             ImGui.Spacing();
             ImGui.Separator();
             ImGui.Spacing();
+
+            ImGui.Text("Music Playback Settings");
+            ImGui.Separator();
 
             bool muteBgm = Plugin.Settings.MuteBgmWhenPlaying;
 
