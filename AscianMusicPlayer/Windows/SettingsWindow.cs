@@ -32,7 +32,7 @@ namespace AscianMusicPlayer.Windows
             Settings.ChannelPerform
         };
 
-        public SettingsWindow(Plugin plugin) : base("Ascian Music Player Settings###AscianMusicPlayerSettings")
+        public SettingsWindow(Plugin plugin) : base("Settings###AscianMusicPlayerSettings")
         {
             _plugin = plugin;
             this.Size = new Vector2(275, 420);
