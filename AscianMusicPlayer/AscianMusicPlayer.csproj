@@ -10,11 +10,10 @@
     <Name>Ascian Music Player</Name>
 	<RepoUrl>https://github.com/GayPotatoEmma/Ascian-Music-Player</RepoUrl>
     <InternalName>AscianMusicPlayer</InternalName>
-    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <AssemblyVersion>1.0.0.1</AssemblyVersion>
 	<Punchline>Even the Ascians needed some tunes.</Punchline>
     <Description>A music player to play your own music files from within the game.</Description>
 	<Tags>music</Tags>
-	<IconUrl>https://raw.githubusercontent.com/GayPotatoEmma/Ascian-Music-Player/refs/heads/master/Ascian%20Music%20Player/Images/logo.png</IconUrl>
   </PropertyGroup>
 
   <ItemGroup>
