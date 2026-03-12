@@ -56,7 +56,7 @@ namespace AscianMusicPlayer.Audio
         {
         }
 
-        public List<Song> LoadSongs(string folderPath)
+        public static List<Song> LoadSongs(string folderPath)
         {
             var songs = new List<Song>();
             if (!Directory.Exists(folderPath)) return songs;

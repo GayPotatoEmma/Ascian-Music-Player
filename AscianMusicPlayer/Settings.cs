@@ -1,4 +1,6 @@
 using Dalamud.Configuration;
+using System.Collections.Generic;
+using AscianMusicPlayer.Audio;
 
 namespace AscianMusicPlayer
 {
@@ -21,6 +23,8 @@ namespace AscianMusicPlayer
         public bool ShowLengthColumn { get; set; } = true;
 
         public bool ShowInDtr { get; set; } = false;
+
+        public List<Playlist> Playlists { get; set; } = new();
 
         public const uint ChannelBgm = 175;
         public const uint ChannelSe = 176;

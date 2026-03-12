@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using Dalamud.Game.Command;
 using Dalamud.Game.Gui.Dtr;
 using Dalamud.IoC;
@@ -12,7 +13,7 @@ namespace AscianMusicPlayer
 {
     public sealed class Plugin : IDalamudPlugin
     {
-        public string Name => "Ascian Music Player";
+        public static string Name => "Ascian Music Player";
 
         [PluginService] public static IDalamudPluginInterface PluginInterface { get; private set; } = null!;
         [PluginService] public static ICommandManager CommandManager { get; private set; } = null!;
@@ -26,9 +27,11 @@ namespace AscianMusicPlayer
 
         public WindowSystem WindowSystem = new("AscianMusicPlayer");
         public AudioController AudioController { get; private set; }
+        public PlaylistManager PlaylistManager { get; private set; }
         public MainWindow MainWindow { get; private set; }
         public SettingsWindow SettingsWindow { get; private set; }
         public MiniPlayerWindow MiniPlayerWindow { get; private set; }
+        public PlaylistWindow PlaylistWindow { get; private set; }
         private IDtrBarEntry? _dtrEntry;
 
         private DateTime _lastVolumeCheck = DateTime.MinValue;
@@ -40,14 +43,17 @@ namespace AscianMusicPlayer
             Settings = PluginInterface.GetPluginConfig() as Settings ?? new Settings();
 
             this.AudioController = new AudioController();
+            this.PlaylistManager = new PlaylistManager(Settings.Playlists);
 
             this.MainWindow = new MainWindow(this);
             this.SettingsWindow = new SettingsWindow(this);
             this.MiniPlayerWindow = new MiniPlayerWindow(this);
+            this.PlaylistWindow = new PlaylistWindow(this);
 
             this.WindowSystem.AddWindow(this.MainWindow);
             this.WindowSystem.AddWindow(this.SettingsWindow);
             this.WindowSystem.AddWindow(this.MiniPlayerWindow);
+            this.WindowSystem.AddWindow(this.PlaylistWindow);
 
             if (!string.IsNullOrEmpty(Settings.MediaFolder))
             {
@@ -75,6 +81,11 @@ namespace AscianMusicPlayer
             CommandManager.AddHandler("/ampsettings", new CommandInfo(OnCommandSettings)
             {
                 HelpMessage = "Opens the Ascian Music Player settings."
+            });
+
+            CommandManager.AddHandler("/ampplaylist", new CommandInfo(OnCommandPlaylist)
+            {
+                HelpMessage = "Opens the Ascian Music Player playlist manager."
             });
 
             PluginInterface.UiBuilder.Draw += DrawUI;
@@ -173,6 +184,11 @@ namespace AscianMusicPlayer
         private void OnCommandSettings(string command, string args)
         {
             this.SettingsWindow.Toggle();
+        }
+
+        private void OnCommandPlaylist(string command, string args)
+        {
+            this.PlaylistWindow.Toggle();
         }
 
         private void DrawUI()
@@ -310,6 +326,7 @@ namespace AscianMusicPlayer
             CommandManager.RemoveHandler("/amp");
             CommandManager.RemoveHandler("/ampmini");
             CommandManager.RemoveHandler("/ampsettings");
+            CommandManager.RemoveHandler("/ampplaylist");
         }
     }
 }
