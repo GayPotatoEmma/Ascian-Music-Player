@@ -64,6 +64,7 @@ namespace AscianMusicPlayer.Windows
                 ImGui.SetNextItemWidth(180);
                 if (ImGui.SliderFloat("Volume", ref Plugin.Settings.MusicVolume, 0f, 100f, "%.0f%%"))
                 {
+                    Plugin.Settings.MusicVolume = Math.Clamp(Plugin.Settings.MusicVolume, 0f, 100f);
                     _plugin.SaveSettings();
                     _plugin.AudioController.UpdateVolume();
                 }
