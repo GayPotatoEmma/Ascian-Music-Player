@@ -295,6 +295,169 @@ namespace AscianMusicPlayer.Windows
             return $"{(int)time.TotalMinutes}:{time.Seconds:D2}";
         }
 
+        private void DrawPlaylistMenu()
+        {
+            using var menu = ImRaii.Menu("Playlists");
+            if (!menu) return;
+
+            if (ImGui.MenuItem("Manage Playlists"))
+            {
+                _plugin.PlaylistWindow.Toggle();
+            }
+
+            ImGui.Separator();
+
+            if (ImGui.MenuItem("All Songs", "", !_activePlaylistId.HasValue))
+            {
+                SetActivePlaylist(null);
+            }
+
+            var playlists = _plugin.PlaylistManager.Playlists.ToList();
+            if (playlists.Count > 0)
+            {
+                ImGui.Separator();
+                foreach (var playlist in playlists)
+                {
+                    bool isActive = _activePlaylistId.HasValue && _activePlaylistId.Value == playlist.Id;
+                    if (ImGui.MenuItem($"{playlist.Name} ({playlist.SongPaths.Count} songs)", "", isActive))
+                    {
+                        SetActivePlaylist(playlist.Id);
+                    }
+                }
+            }
+        }
+
+        private void DrawColumnsMenu()
+        {
+            using var menu = ImRaii.Menu("Columns");
+            if (!menu) return;
+
+            ImGui.Text("Visibility:");
+            ImGui.Separator();
+
+            if (ImGui.Checkbox("Artist", ref Plugin.Settings.ShowArtistColumn))
+            {
+                Plugin.Settings.Save();
+            }
+
+            if (ImGui.Checkbox("Album", ref Plugin.Settings.ShowAlbumColumn))
+            {
+                Plugin.Settings.Save();
+            }
+
+            if (ImGui.Checkbox("Length", ref Plugin.Settings.ShowLengthColumn))
+            {
+                Plugin.Settings.Save();
+            }
+
+            ImGui.Spacing();
+            ImGui.Separator();
+
+            if (ImGui.MenuItem("Reset to Defaults"))
+            {
+                Plugin.Settings.ShowArtistColumn = true;
+                Plugin.Settings.ShowAlbumColumn = true;
+                Plugin.Settings.ShowLengthColumn = true;
+                Plugin.Settings.TitleColumnWidth = 0;
+                Plugin.Settings.ArtistColumnWidth = 100;
+                Plugin.Settings.AlbumColumnWidth = 100;
+                Plugin.Settings.LengthColumnWidth = 85;
+                Plugin.Settings.Save();
+                _tableResetCounter++;
+                _skipNextColumnSave = true;
+            }
+        }
+
+        private void DrawAddToPlaylistMenu(Song song, List<Playlist> availablePlaylists)
+        {
+            using var menu = ImRaii.Menu("Add to Playlist");
+            if (!menu) return;
+
+            if (availablePlaylists.Count == 0)
+            {
+                ImGui.TextDisabled("No playlists available");
+                return;
+            }
+
+            foreach (var playlist in availablePlaylists)
+            {
+                bool alreadyInPlaylist = playlist.SongPaths.Contains(song.FilePath);
+                if (ImGui.MenuItem(playlist.Name, string.Empty, false, !alreadyInPlaylist))
+                {
+                    _plugin.PlaylistManager.AddSongToPlaylist(playlist.Id, song.FilePath);
+                    _plugin.SaveSettings();
+                }
+                if (alreadyInPlaylist && ImGui.IsItemHovered())
+                {
+                    ImGui.SetTooltip("Already in playlist");
+                }
+            }
+        }
+
+        private void DrawAddAlbumToPlaylistMenu(Song song, List<Playlist> availablePlaylists)
+        {
+            using var menu = ImRaii.Menu("Add Album to Playlist");
+            if (!menu) return;
+
+            if (availablePlaylists.Count == 0)
+            {
+                ImGui.TextDisabled("No playlists available");
+                return;
+            }
+
+            var albumSongs = _songs.Where(s => s.Album == song.Album).ToList();
+            ImGui.TextDisabled($"Album: {song.Album} ({albumSongs.Count} songs)");
+            ImGui.Separator();
+
+            foreach (var playlist in availablePlaylists)
+            {
+                int songsAlreadyInPlaylist = albumSongs.Count(s => playlist.SongPaths.Contains(s.FilePath));
+                bool allInPlaylist = songsAlreadyInPlaylist == albumSongs.Count;
+
+                if (ImGui.MenuItem(playlist.Name, string.Empty, false, !allInPlaylist))
+                {
+                    foreach (var albumSong in albumSongs)
+                    {
+                        if (!playlist.SongPaths.Contains(albumSong.FilePath))
+                        {
+                            _plugin.PlaylistManager.AddSongToPlaylist(playlist.Id, albumSong.FilePath);
+                        }
+                    }
+                    _plugin.SaveSettings();
+                }
+
+                if (ImGui.IsItemHovered())
+                {
+                    if (allInPlaylist)
+                    {
+                        ImGui.SetTooltip("All songs already in playlist");
+                    }
+                    else if (songsAlreadyInPlaylist > 0)
+                    {
+                        ImGui.SetTooltip($"{songsAlreadyInPlaylist}/{albumSongs.Count} songs already in playlist");
+                    }
+                }
+            }
+        }
+
+        private void DrawSongContextMenu(Song song)
+        {
+            var availablePlaylists = _plugin.PlaylistManager.Playlists.ToList();
+
+            DrawAddToPlaylistMenu(song, availablePlaylists);
+            DrawAddAlbumToPlaylistMenu(song, availablePlaylists);
+
+            if (_activePlaylistId.HasValue)
+            {
+                if (ImGui.MenuItem("Remove from Playlist"))
+                {
+                    _plugin.PlaylistManager.RemoveSongFromPlaylist(_activePlaylistId.Value, song.FilePath);
+                    _plugin.SaveSettings();
+                    RefreshDisplaySongs();
+                }
+            }
+        }
+
         public override void Draw()
         {
             using (var menuBar = ImRaii.MenuBar())
@@ -311,85 +474,8 @@ namespace AscianMusicPlayer.Windows
                         _plugin.MiniPlayerWindow.Toggle();
                     }
 
-                    using (var menu = ImRaii.Menu("Playlists"))
-                    {
-                        if (menu)
-                        {
-                            if (ImGui.MenuItem("Manage Playlists"))
-                            {
-                                _plugin.PlaylistWindow.Toggle();
-                            }
-
-                            ImGui.Separator();
-
-                            if (ImGui.MenuItem("All Songs", "", !_activePlaylistId.HasValue))
-                            {
-                                SetActivePlaylist(null);
-                            }
-
-                            var playlists = _plugin.PlaylistManager.Playlists.ToList();
-                            if (playlists.Count > 0)
-                            {
-                                ImGui.Separator();
-                                foreach (var playlist in playlists)
-                                {
-                                    bool isActive = _activePlaylistId.HasValue && _activePlaylistId.Value == playlist.Id;
-                                    if (ImGui.MenuItem($"{playlist.Name} ({playlist.SongPaths.Count} songs)", "", isActive))
-                                    {
-                                        SetActivePlaylist(playlist.Id);
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    using (var menu = ImRaii.Menu("Columns"))
-                    {
-                        if (menu)
-                        {
-                            ImGui.Text("Visibility:");
-                            ImGui.Separator();
-
-                            bool showArtist = Plugin.Settings.ShowArtistColumn;
-                            bool showAlbum = Plugin.Settings.ShowAlbumColumn;
-                            bool showLength = Plugin.Settings.ShowLengthColumn;
-
-                            if (ImGui.Checkbox("Artist", ref showArtist))
-                            {
-                                Plugin.Settings.ShowArtistColumn = showArtist;
-                                Plugin.Settings.Save();
-                            }
-
-                            if (ImGui.Checkbox("Album", ref showAlbum))
-                            {
-                                Plugin.Settings.ShowAlbumColumn = showAlbum;
-                                Plugin.Settings.Save();
-                            }
-
-                            if (ImGui.Checkbox("Length", ref showLength))
-                            {
-                                Plugin.Settings.ShowLengthColumn = showLength;
-                                Plugin.Settings.Save();
-                            }
-
-                            ImGui.Spacing();
-                            ImGui.Separator();
-
-                            if (ImGui.MenuItem("Reset to Defaults"))
-                            {
-                                Plugin.Settings.ShowArtistColumn = true;
-                                Plugin.Settings.ShowAlbumColumn = true;
-                                Plugin.Settings.ShowLengthColumn = true;
-                                Plugin.Settings.TitleColumnWidth = 0;
-                                Plugin.Settings.ArtistColumnWidth = 100;
-                                Plugin.Settings.AlbumColumnWidth = 100;
-                                Plugin.Settings.LengthColumnWidth = 85;
-                                Plugin.Settings.Save();
-                                _tableResetCounter++;
-                                _skipNextColumnSave = true;
-                            }
-                        }
-                    }
+                    DrawPlaylistMenu();
+                    DrawColumnsMenu();
                 }
             }
 
@@ -674,91 +760,7 @@ namespace AscianMusicPlayer.Windows
                     {
                         if (popup)
                         {
-                            var availablePlaylists = _plugin.PlaylistManager.Playlists.ToList();
-
-                            using (var menu = ImRaii.Menu("Add to Playlist"))
-                            {
-                                if (menu)
-                                {
-                                    if (availablePlaylists.Count == 0)
-                                    {
-                                        ImGui.TextDisabled("No playlists available");
-                                    }
-                                    else
-                                    {
-                                        foreach (var playlist in availablePlaylists)
-                                        {
-                                            bool alreadyInPlaylist = playlist.SongPaths.Contains(song.FilePath);
-                                            if (ImGui.MenuItem(playlist.Name, string.Empty, false, !alreadyInPlaylist))
-                                            {
-                                                _plugin.PlaylistManager.AddSongToPlaylist(playlist.Id, song.FilePath);
-                                                _plugin.SaveSettings();
-                                            }
-                                            if (alreadyInPlaylist && ImGui.IsItemHovered())
-                                            {
-                                                ImGui.SetTooltip("Already in playlist");
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-
-                            using (var menu = ImRaii.Menu("Add Album to Playlist"))
-                            {
-                                if (menu)
-                                {
-                                    if (availablePlaylists.Count == 0)
-                                    {
-                                        ImGui.TextDisabled("No playlists available");
-                                    }
-                                    else
-                                    {
-                                        var albumSongs = _songs.Where(s => s.Album == song.Album).ToList();
-                                        ImGui.TextDisabled($"Album: {song.Album} ({albumSongs.Count} songs)");
-                                        ImGui.Separator();
-
-                                        foreach (var playlist in availablePlaylists)
-                                        {
-                                            int songsAlreadyInPlaylist = albumSongs.Count(s => playlist.SongPaths.Contains(s.FilePath));
-                                            bool allInPlaylist = songsAlreadyInPlaylist == albumSongs.Count;
-
-                                            if (ImGui.MenuItem(playlist.Name, string.Empty, false, !allInPlaylist))
-                                            {
-                                                foreach (var albumSong in albumSongs)
-                                                {
-                                                    if (!playlist.SongPaths.Contains(albumSong.FilePath))
-                                                    {
-                                                        _plugin.PlaylistManager.AddSongToPlaylist(playlist.Id, albumSong.FilePath);
-                                                    }
-                                                }
-                                                _plugin.SaveSettings();
-                                            }
-
-                                            if (ImGui.IsItemHovered())
-                                            {
-                                                if (allInPlaylist)
-                                                {
-                                                    ImGui.SetTooltip("All songs already in playlist");
-                                                }
-                                                else if (songsAlreadyInPlaylist > 0)
-                                                {
-                                                    ImGui.SetTooltip($"{songsAlreadyInPlaylist}/{albumSongs.Count} songs already in playlist");
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-
-                            if (_activePlaylistId.HasValue)
-                            {
-                                if (ImGui.MenuItem("Remove from Playlist"))
-                                {
-                                    _plugin.PlaylistManager.RemoveSongFromPlaylist(_activePlaylistId.Value, song.FilePath);
-                                    _plugin.SaveSettings();
-                                    RefreshDisplaySongs();
-                                }
-                            }
+                            DrawSongContextMenu(song);
                         }
                     }
 

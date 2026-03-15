@@ -8,24 +8,24 @@ namespace AscianMusicPlayer
     {
         public int Version { get; set; } = 0;
 
-        public string MediaFolder { get; set; } = string.Empty;
-        public bool SearchSubfolders { get; set; } = false;
-        public uint MusicChannel { get; set; } = 180;
-        public bool MuteBgmWhenPlaying { get; set; } = true;
+        public string MediaFolder = string.Empty;
+        public bool SearchSubfolders = false;
+        public uint MusicChannel = 180;
+        public bool MuteBgmWhenPlaying = true;
 
-        public bool BindToGameVolume { get; set; } = true;
-        public float MusicVolume { get; set; } = 100f;
+        public bool BindToGameVolume = true;
+        public float MusicVolume = 100f;
 
-        public float TitleColumnWidth { get; set; } = 0;
-        public float ArtistColumnWidth { get; set; } = 100;
-        public float AlbumColumnWidth { get; set; } = 100;
-        public float LengthColumnWidth { get; set; } = 85;
+        public float TitleColumnWidth = 0;
+        public float ArtistColumnWidth = 100;
+        public float AlbumColumnWidth = 100;
+        public float LengthColumnWidth = 85;
 
-        public bool ShowArtistColumn { get; set; } = true;
-        public bool ShowAlbumColumn { get; set; } = true;
-        public bool ShowLengthColumn { get; set; } = true;
+        public bool ShowArtistColumn = true;
+        public bool ShowAlbumColumn = true;
+        public bool ShowLengthColumn = true;
 
-        public bool ShowInDtr { get; set; } = false;
+        public bool ShowInDtr = false;
 
         public List<Playlist> Playlists { get; set; } = new();
 

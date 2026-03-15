@@ -53,21 +53,17 @@ namespace AscianMusicPlayer.Windows
             ImGui.Text("Volume Settings");
             ImGui.Separator();
 
-            bool bindToGameVolume = Plugin.Settings.BindToGameVolume;
-            if (ImGui.Checkbox("Bind to Game Volume", ref bindToGameVolume))
+            if (ImGui.Checkbox("Bind to Game Volume", ref Plugin.Settings.BindToGameVolume))
             {
-                Plugin.Settings.BindToGameVolume = bindToGameVolume;
                 _plugin.SaveSettings();
                 _plugin.AudioController.UpdateVolume();
             }
 
             if (!Plugin.Settings.BindToGameVolume)
             {
-                float musicVolume = Plugin.Settings.MusicVolume;
                 ImGui.SetNextItemWidth(180);
-                if (ImGui.SliderFloat("Volume", ref musicVolume, 0f, 100f, "%.0f%%"))
+                if (ImGui.SliderFloat("Volume", ref Plugin.Settings.MusicVolume, 0f, 100f, "%.0f%%"))
                 {
-                    Plugin.Settings.MusicVolume = musicVolume;
                     _plugin.SaveSettings();
                     _plugin.AudioController.UpdateVolume();
                 }
@@ -91,24 +87,18 @@ namespace AscianMusicPlayer.Windows
             ImGui.Text("Music Playback Settings");
             ImGui.Separator();
 
-            bool muteBgm = Plugin.Settings.MuteBgmWhenPlaying;
-
-            if (ImGui.Checkbox("Mute BGM when playing music", ref muteBgm))
+            if (ImGui.Checkbox("Mute BGM when playing music", ref Plugin.Settings.MuteBgmWhenPlaying))
             {
-                Plugin.Settings.MuteBgmWhenPlaying = muteBgm;
                 _plugin.SaveSettings();
                 _plugin.AudioController.ApplySettingsChange();
             }
 
             ImGui.Spacing();
 
-            bool showInDtr = Plugin.Settings.ShowInDtr;
-
-            if (ImGui.Checkbox("Show current song in Server Info Bar", ref showInDtr))
+            if (ImGui.Checkbox("Show current song in Server Info Bar", ref Plugin.Settings.ShowInDtr))
             {
-                Plugin.Settings.ShowInDtr = showInDtr;
                 _plugin.SaveSettings();
-                _plugin.ToggleDtr(showInDtr);
+                _plugin.ToggleDtr(Plugin.Settings.ShowInDtr);
             }
 
             ImGui.Spacing();
@@ -140,10 +130,8 @@ namespace AscianMusicPlayer.Windows
 
             ImGui.Spacing();
 
-            bool searchSubfolders = Plugin.Settings.SearchSubfolders;
-            if (ImGui.Checkbox("Scan subfolders", ref searchSubfolders))
+            if (ImGui.Checkbox("Scan subfolders", ref Plugin.Settings.SearchSubfolders))
             {
-                Plugin.Settings.SearchSubfolders = searchSubfolders;
                 _plugin.SaveSettings();
             }
 
