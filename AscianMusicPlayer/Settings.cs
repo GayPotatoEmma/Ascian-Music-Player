@@ -26,6 +26,7 @@ namespace AscianMusicPlayer
         public bool ShowLengthColumn = true;
 
         public bool ShowInDtr = false;
+        public bool PrintSongToChat = false;
 
         public List<Playlist> Playlists { get; set; } = new();
 

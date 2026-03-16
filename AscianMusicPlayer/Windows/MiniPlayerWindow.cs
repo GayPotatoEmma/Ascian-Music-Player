@@ -92,9 +92,10 @@ namespace AscianMusicPlayer.Windows
             ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(5, 5));
             ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(3, 0));
 
+            var scale = ImGui.GetIO().FontGlobalScale;
             float buttonWidth = 40f;
-            float spacing = 3f;
-            float totalWidth = (5 * buttonWidth) + (4 * spacing);
+            float spacing = ImGui.GetStyle().ItemSpacing.X;
+            float totalWidth = (5 * buttonWidth * scale) + (4 * spacing);
             float windowWidth2 = ImGui.GetContentRegionAvail().X;
             float offset2 = (windowWidth2 - totalWidth) / 2f;
 

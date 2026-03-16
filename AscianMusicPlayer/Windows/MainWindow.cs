@@ -166,6 +166,11 @@ namespace AscianMusicPlayer.Windows
             _plugin.AudioController.Play(song);
             _plugin.UpdateDtr();
 
+            if (Plugin.Settings.PrintSongToChat)
+            {
+                _plugin.PrintNowPlayingToChat(song);
+            }
+
             if (_isShuffle && _shuffleQueue.Count > 0)
             {
                 _shufflePosition = _shuffleQueue.IndexOf(_selectedSongIndex);
@@ -479,12 +484,13 @@ namespace AscianMusicPlayer.Windows
                 }
             }
 
+            var scale = ImGui.GetIO().FontGlobalScale;
             ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(5, 5));
             ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(3, 0));
 
             float buttonWidth = 40f;
-            float spacing = 3f;
-            float totalWidth = (5 * buttonWidth) + (4 * spacing);
+            float spacing = ImGui.GetStyle().ItemSpacing.X;
+            float totalWidth = (5 * buttonWidth * scale) + (4 * spacing);
             float windowWidth = ImGui.GetContentRegionAvail().X;
             float offset = (windowWidth - totalWidth) / 2f;
 
@@ -621,17 +627,18 @@ namespace AscianMusicPlayer.Windows
                 {
                 ImGui.TableSetupColumn("Title", ImGuiTableColumnFlags.WidthStretch | ImGuiTableColumnFlags.NoHide | ImGuiTableColumnFlags.DefaultSort | ImGuiTableColumnFlags.PreferSortAscending);
 
+                var columnScale = ImGui.GetIO().FontGlobalScale;
                 if (Plugin.Settings.ShowArtistColumn)
                 {
-                    ImGui.TableSetupColumn("Artist", ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.PreferSortAscending, Math.Max(Plugin.Settings.ArtistColumnWidth, 80));
+                    ImGui.TableSetupColumn("Artist", ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.PreferSortAscending, Math.Max(Plugin.Settings.ArtistColumnWidth * columnScale, 80 * columnScale));
                 }
                 if (Plugin.Settings.ShowAlbumColumn)
                 {
-                    ImGui.TableSetupColumn("Album", ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.PreferSortAscending, Math.Max(Plugin.Settings.AlbumColumnWidth, 80));
+                    ImGui.TableSetupColumn("Album", ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.PreferSortAscending, Math.Max(Plugin.Settings.AlbumColumnWidth * columnScale, 80 * columnScale));
                 }
                 if (Plugin.Settings.ShowLengthColumn)
                 {
-                    ImGui.TableSetupColumn("Length", ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.PreferSortAscending, Math.Max(Plugin.Settings.LengthColumnWidth, 50));
+                    ImGui.TableSetupColumn("Length", ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.PreferSortAscending, Math.Max(Plugin.Settings.LengthColumnWidth * columnScale, 50 * columnScale));
                 }
 
                 ImGui.TableSetupScrollFreeze(0, 2);

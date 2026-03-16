@@ -35,7 +35,8 @@ namespace AscianMusicPlayer.Windows
             ImGui.Separator();
             ImGui.Spacing();
 
-            float buttonWidth = 120;
+            var scale = ImGui.GetIO().FontGlobalScale;
+            float buttonWidth = 120 * scale;
             float spacing = ImGui.GetStyle().ItemSpacing.X;
             float availableWidth = ImGui.GetContentRegionAvail().X;
             float inputWidth = availableWidth - buttonWidth - spacing;
@@ -71,8 +72,9 @@ namespace AscianMusicPlayer.Windows
                     {
                         if (table)
                         {
+                            var tableScale = ImGui.GetIO().FontGlobalScale;
                             ImGui.TableSetupColumn("Playlist", ImGuiTableColumnFlags.WidthStretch);
-                            ImGui.TableSetupColumn("Actions", ImGuiTableColumnFlags.WidthFixed, 100);
+                            ImGui.TableSetupColumn("Actions", ImGuiTableColumnFlags.WidthFixed, 100 * tableScale);
 
                             Guid? playlistToDelete = null;
 

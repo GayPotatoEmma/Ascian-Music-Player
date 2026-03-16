@@ -21,6 +21,7 @@ namespace AscianMusicPlayer
         [PluginService] public static IFramework Framework { get; private set; } = null!;
         [PluginService] public static IDtrBar DtrBar { get; private set; } = null!;
         [PluginService] public static INotificationManager NotificationManager { get; private set; } = null!;
+        [PluginService] public static IChatGui ChatGui { get; private set; } = null!;
 
         public static Settings Settings { get; private set; } = null!;
 
@@ -263,7 +264,7 @@ namespace AscianMusicPlayer
             {
                 string newText;
                 string newTooltip;
-                
+
                 if (AudioController.IsPlaying && AudioController.HasAudio)
                 {
                     var currentSong = MainWindow.GetCurrentSong();
@@ -289,7 +290,7 @@ namespace AscianMusicPlayer
                     _dtrEntry.Text = newText;
                     _lastDtrText = newText;
                 }
-                
+
                 if (newTooltip != _lastDtrTooltip)
                 {
                     _dtrEntry.Tooltip = newTooltip;
@@ -299,6 +300,19 @@ namespace AscianMusicPlayer
             catch (Exception ex)
             {
                 Plugin.Log.Error($"Failed to update DTR: {ex.Message}");
+            }
+        }
+
+        public void PrintNowPlayingToChat(Song song)
+        {
+            try
+            {
+                var message = $"Now playing: {song.Title} - {song.Artist}";
+                ChatGui.Print(message, "AMP", 56);
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"Failed to print to chat: {ex.Message}");
             }
         }
 

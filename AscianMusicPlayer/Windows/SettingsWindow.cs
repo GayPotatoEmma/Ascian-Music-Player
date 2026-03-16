@@ -35,7 +35,8 @@ namespace AscianMusicPlayer.Windows
         public SettingsWindow(Plugin plugin) : base("Settings###AscianMusicPlayerSettings")
         {
             _plugin = plugin;
-            this.Size = new Vector2(275, 420);
+            var height = Util.IsWine() ? 455 : 420;
+            this.Size = new Vector2(275, height);
             this.SizeCondition = ImGuiCond.Always;
             this.Flags = ImGuiWindowFlags.NoResize;
 
@@ -61,7 +62,7 @@ namespace AscianMusicPlayer.Windows
 
             if (!Plugin.Settings.BindToGameVolume)
             {
-                ImGui.SetNextItemWidth(180);
+                ImGui.SetNextItemWidth(180 * ImGui.GetIO().FontGlobalScale);
                 if (ImGui.SliderFloat("Volume", ref Plugin.Settings.MusicVolume, 0f, 100f, "%.0f%%"))
                 {
                     Plugin.Settings.MusicVolume = Math.Clamp(Plugin.Settings.MusicVolume, 0f, 100f);
@@ -72,7 +73,7 @@ namespace AscianMusicPlayer.Windows
             else
             {
                 ImGui.Text("Music Channel:");
-                ImGui.SetNextItemWidth(180);
+                ImGui.SetNextItemWidth(180 * ImGui.GetIO().FontGlobalScale);
                 if (ImGui.Combo("##MusicChannel", ref _selectedChannel, _channelNames, _channelNames.Length))
                 {
                     Plugin.Settings.MusicChannel = _channelIds[_selectedChannel];
@@ -103,11 +104,18 @@ namespace AscianMusicPlayer.Windows
             }
 
             ImGui.Spacing();
+
+            if (ImGui.Checkbox("Print current song to chat", ref Plugin.Settings.PrintSongToChat))
+            {
+                _plugin.SaveSettings();
+            }
+
+            ImGui.Spacing();
             ImGui.Separator();
             ImGui.Spacing();
 
             ImGui.Text("Media Folder:");
-            ImGui.SetNextItemWidth(180);
+            ImGui.SetNextItemWidth(180 * ImGui.GetIO().FontGlobalScale);
             ImGui.InputText("##MediaFolder", ref _mediaFolderInput, 260);
 
             ImGui.SameLine();
@@ -138,7 +146,8 @@ namespace AscianMusicPlayer.Windows
 
             ImGui.Spacing();
 
-            if (ImGui.Button("Scan", new Vector2(100, 0)))
+            var scale = ImGui.GetIO().FontGlobalScale;
+            if (ImGui.Button("Scan", new Vector2(100 * scale, 0)))
             {
                 if (!string.IsNullOrEmpty(_mediaFolderInput))
                 {
@@ -152,7 +161,7 @@ namespace AscianMusicPlayer.Windows
             if (!string.IsNullOrEmpty(_mediaFolderInput) && _mediaFolderInput != Plugin.Settings.MediaFolder)
             {
                 ImGui.SameLine();
-                if (ImGui.Button("Apply Folder", new Vector2(100, 0)))
+                if (ImGui.Button("Apply Folder", new Vector2(100 * scale, 0)))
                 {
                     Plugin.Settings.MediaFolder = _mediaFolderInput;
                     _plugin.SaveSettings();
