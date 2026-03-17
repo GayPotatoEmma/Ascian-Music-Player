@@ -410,7 +410,7 @@ namespace AscianMusicPlayer.Windows
                 return;
             }
 
-            var albumSongs = _songs.Where(s => s.Album == song.Album && s.Artist == song.Artist).ToList();
+            var albumSongs = _songs.Where(s => s.Album == song.Album && s.AlbumArtist == song.AlbumArtist).ToList();
             ImGui.TextDisabled($"Album: {song.Album} ({albumSongs.Count} songs)");
             ImGui.Separator();
 

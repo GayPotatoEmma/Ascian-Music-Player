@@ -8,6 +8,7 @@ namespace AscianMusicPlayer.Audio
         public string Title { get; set; } = "Unknown Title";
         public string Artist { get; set; } = "Unknown Artist";
         public string Album { get; set; } = "Unknown Album";
+        public string AlbumArtist { get; set; } = "Unknown Artist";
         public TimeSpan Duration { get; set; }
 
         public string FormattedDuration => $"{(int)Duration.TotalMinutes}:{Duration.Seconds:D2}";

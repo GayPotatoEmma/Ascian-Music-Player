@@ -85,6 +85,7 @@ namespace AscianMusicPlayer.Audio
                         Title = tfile.Tag.Title ?? Path.GetFileNameWithoutExtension(file),
                         Artist = tfile.Tag.FirstPerformer ?? "Unknown",
                         Album = tfile.Tag.Album ?? "Unknown",
+                        AlbumArtist = tfile.Tag.FirstAlbumArtist ?? tfile.Tag.FirstPerformer ?? "Unknown",
                         Duration = tfile.Properties.Duration
                     });
                 }
