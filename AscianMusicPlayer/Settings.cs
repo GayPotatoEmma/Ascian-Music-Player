@@ -28,6 +28,8 @@ namespace AscianMusicPlayer
         public bool ShowInDtr = false;
         public bool PrintSongToChat = false;
 
+        public float CrossfadeDuration = 0f;
+
         public List<Playlist> Playlists { get; set; } = new();
 
         public const uint ChannelBgm = 175;

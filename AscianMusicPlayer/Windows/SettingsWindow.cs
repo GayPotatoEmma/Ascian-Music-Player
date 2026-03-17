@@ -35,7 +35,7 @@ namespace AscianMusicPlayer.Windows
         public SettingsWindow(Plugin plugin) : base("Settings###AscianMusicPlayerSettings")
         {
             _plugin = plugin;
-            var height = Util.IsWine() ? 455 : 420;
+            var height = Util.IsWine() ? 440 : 405;
             this.Size = new Vector2(275, height);
             this.SizeCondition = ImGuiCond.Always;
             this.Flags = ImGuiWindowFlags.NoResize;
@@ -108,6 +108,21 @@ namespace AscianMusicPlayer.Windows
             if (ImGui.Checkbox("Print current song to chat", ref Plugin.Settings.PrintSongToChat))
             {
                 _plugin.SaveSettings();
+            }
+
+            ImGui.Spacing();
+
+            ImGui.Text("Crossfade Duration:");
+            ImGui.SetNextItemWidth(180 * ImGui.GetIO().FontGlobalScale);
+            if (ImGui.SliderFloat("##Crossfade", ref Plugin.Settings.CrossfadeDuration, 0f, 10f, "%.0f seconds"))
+            {
+                Plugin.Settings.CrossfadeDuration = MathF.Round(Plugin.Settings.CrossfadeDuration);
+                Plugin.Settings.CrossfadeDuration = Math.Clamp(Plugin.Settings.CrossfadeDuration, 0f, 10f);
+                _plugin.SaveSettings();
+            }
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.SetTooltip("Fade between songs (0 = disabled)");
             }
 
             ImGui.Spacing();

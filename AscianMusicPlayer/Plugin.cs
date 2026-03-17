@@ -113,6 +113,7 @@ namespace AscianMusicPlayer
             }
 
             this.AudioController.CheckBgmUnmute();
+            this.AudioController.UpdateCrossfade();
         }
 
         private void OnCommand(string command, string args)

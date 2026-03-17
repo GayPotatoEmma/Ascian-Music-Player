@@ -17,7 +17,14 @@ namespace AscianMusicPlayer.Audio
         private DateTime _bgmUnmuteTime = DateTime.MinValue;
         private bool _pendingBgmUnmute = false;
 
+        private IWavePlayer? _nextOutputDevice;
+        private AudioFileReader? _nextAudioFile;
+        private bool _isCrossfading = false;
+        private DateTime _crossfadeStartTime;
+        private Song? _nextSong;
+
         public event EventHandler? SongEnded;
+        public event EventHandler<Song>? SongChanged;
 
         public bool IsPlaying => _outputDevice?.PlaybackState == PlaybackState.Playing;
         public bool IsPaused => _outputDevice?.PlaybackState == PlaybackState.Paused;
@@ -101,6 +108,8 @@ namespace AscianMusicPlayer.Audio
         {
             _pendingBgmUnmute = false;
 
+            CleanupNextTrack();
+
             if (_outputDevice != null)
             {
                 _outputDevice.PlaybackStopped -= OnPlaybackStopped;
@@ -145,6 +154,11 @@ namespace AscianMusicPlayer.Audio
             }
         }
 
+        public void SetNextSong(Song? song)
+        {
+            _nextSong = song;
+        }
+
         private void OnPlaybackStopped(object? sender, StoppedEventArgs e)
         {
             if (e.Exception == null)
@@ -159,6 +173,8 @@ namespace AscianMusicPlayer.Audio
 
         public void Stop()
         {
+            CleanupNextTrack();
+
             if (_outputDevice != null)
             {
                 _outputDevice.PlaybackStopped -= OnPlaybackStopped;
@@ -199,7 +215,7 @@ namespace AscianMusicPlayer.Audio
 
                 _currentVolume = vol;
 
-                if (_audioFile != null)
+                if (_audioFile != null && !_isCrossfading)
                 {
                     _audioFile.Volume = _currentVolume;
                 }
@@ -263,6 +279,132 @@ namespace AscianMusicPlayer.Audio
                     }
                 }
             }
+        }
+
+        public void UpdateCrossfade()
+        {
+            if (Plugin.Settings.CrossfadeDuration <= 0 || !IsPlaying || _audioFile == null)
+                return;
+
+            var timeRemaining = TotalTime - CurrentTime;
+
+            if (!_isCrossfading && timeRemaining.TotalSeconds <= Plugin.Settings.CrossfadeDuration && _nextSong != null)
+            {
+                StartCrossfade(_nextSong);
+            }
+
+            if (_isCrossfading && _nextAudioFile != null && _audioFile != null)
+            {
+                var elapsed = (DateTime.UtcNow - _crossfadeStartTime).TotalSeconds;
+                var progress = Math.Min(elapsed / Plugin.Settings.CrossfadeDuration, 1.0);
+
+                _audioFile.Volume = _currentVolume * (float)(1.0 - progress);
+                _nextAudioFile.Volume = _currentVolume * (float)progress;
+
+                if (progress >= 1.0)
+                {
+                    CompleteCrossfade();
+                }
+            }
+        }
+
+        private void StartCrossfade(Song nextSong)
+        {
+            if (_isCrossfading || _nextOutputDevice != null)
+                return;
+
+            try
+            {
+                _nextAudioFile = new AudioFileReader(nextSong.FilePath);
+                _nextOutputDevice = new WaveOutEvent();
+                _nextOutputDevice.Init(_nextAudioFile);
+                _nextOutputDevice.PlaybackStopped += OnNextPlaybackStopped;
+
+                _nextAudioFile.Volume = 0f;
+
+                _nextOutputDevice.Play();
+
+                _isCrossfading = true;
+                _crossfadeStartTime = DateTime.UtcNow;
+
+                Plugin.Log.Debug($"Started crossfade to: {nextSong.Title}");
+            }
+            catch (Exception ex)
+            {
+                Plugin.Log.Error(ex, $"Failed to start crossfade to: {nextSong.FilePath}");
+                CleanupNextTrack();
+            }
+        }
+
+        private void CompleteCrossfade()
+        {
+            var completedSong = _nextSong;
+
+            if (_outputDevice != null)
+            {
+                _outputDevice.PlaybackStopped -= OnPlaybackStopped;
+                _outputDevice.Stop();
+                _outputDevice.Dispose();
+                _outputDevice = null;
+            }
+            if (_audioFile != null)
+            {
+                _audioFile.Dispose();
+                _audioFile = null;
+            }
+
+            _outputDevice = _nextOutputDevice;
+            _audioFile = _nextAudioFile;
+            _nextOutputDevice = null;
+            _nextAudioFile = null;
+
+            if (_outputDevice != null)
+            {
+                _outputDevice.PlaybackStopped -= OnNextPlaybackStopped;
+                _outputDevice.PlaybackStopped += OnPlaybackStopped;
+            }
+
+            if (_audioFile != null)
+            {
+                _audioFile.Volume = _currentVolume;
+            }
+
+            _isCrossfading = false;
+            _nextSong = null;
+
+            Plugin.Log.Debug("Completed crossfade");
+
+            if (completedSong != null)
+            {
+                SongChanged?.Invoke(this, completedSong);
+            }
+        }
+
+        private void OnNextPlaybackStopped(object? sender, StoppedEventArgs e)
+        {
+            if (e.Exception != null)
+            {
+                Plugin.Log.Error($"Next track playback stopped with error: {e.Exception.Message}");
+                CleanupNextTrack();
+            }
+        }
+
+        private void CleanupNextTrack()
+        {
+            if (_nextOutputDevice != null)
+            {
+                _nextOutputDevice.PlaybackStopped -= OnNextPlaybackStopped;
+                _nextOutputDevice.Stop();
+                _nextOutputDevice.Dispose();
+                _nextOutputDevice = null;
+            }
+            if (_nextAudioFile != null)
+            {
+                _nextAudioFile.Dispose();
+                _nextAudioFile = null;
+            }
+            _isCrossfading = false;
+            _nextSong = null;
         }
 
         public void Dispose()

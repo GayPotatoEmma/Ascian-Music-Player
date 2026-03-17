@@ -60,11 +60,37 @@ namespace AscianMusicPlayer.Windows
             _displaySongs = _songs;
 
             _plugin.AudioController.SongEnded += OnSongEnded;
+            _plugin.AudioController.SongChanged += OnSongChanged;
         }
 
         public void Cleanup()
         {
             _plugin.AudioController.SongEnded -= OnSongEnded;
+            _plugin.AudioController.SongChanged -= OnSongChanged;
+        }
+
+        private void OnSongChanged(object? sender, Song song)
+        {
+            _currentSong = song;
+            _selectedSongIndex = _displaySongs.IndexOf(song);
+            _plugin.UpdateDtr();
+
+            if (Plugin.Settings.PrintSongToChat)
+            {
+                _plugin.PrintNowPlayingToChat(song);
+            }
+
+            if (_isShuffle && _shuffleQueue.Count > 0)
+            {
+                _shufflePosition = _shuffleQueue.IndexOf(_selectedSongIndex);
+                if (_shufflePosition == -1)
+                {
+                    GenerateShuffleQueue();
+                }
+            }
+
+            var nextSong = GetNextSongForCrossfade();
+            _plugin.AudioController.SetNextSong(nextSong);
         }
 
         private void OnSongEnded(object? sender, EventArgs e)
@@ -179,6 +205,65 @@ namespace AscianMusicPlayer.Windows
                     GenerateShuffleQueue();
                 }
             }
+
+            var nextSong = GetNextSongForCrossfade();
+            _plugin.AudioController.SetNextSong(nextSong);
+        }
+
+        private Song? GetNextSongForCrossfade()
+        {
+            if (_displaySongs.Count == 0) return null;
+
+            switch (_repeatMode)
+            {
+                case RepeatMode.One:
+                    return _currentSong;
+
+                case RepeatMode.All:
+                    return GetNextSongInQueue();
+
+                case RepeatMode.Off:
+                    if (_isShuffle)
+                    {
+                        return GetNextSongInQueue();
+                    }
+                    else
+                    {
+                        if (_selectedSongIndex < _displaySongs.Count - 1)
+                        {
+                            return _displaySongs[_selectedSongIndex + 1];
+                        }
+                    }
+                    break;
+            }
+
+            return null;
+        }
+
+        private Song? GetNextSongInQueue()
+        {
+            if (_displaySongs.Count == 0) return null;
+
+            int nextIndex;
+
+            if (_isShuffle)
+            {
+                if (_shuffleQueue.Count != _displaySongs.Count)
+                {
+                    GenerateShuffleQueue();
+                }
+
+                int nextPosition = _shufflePosition + 1;
+                if (nextPosition >= _shuffleQueue.Count) nextPosition = 0;
+                nextIndex = _shuffleQueue[nextPosition];
+            }
+            else
+            {
+                nextIndex = _selectedSongIndex + 1;
+                if (nextIndex >= _displaySongs.Count) nextIndex = 0;
+            }
+
+            return _displaySongs[nextIndex];
         }
 
         private void GenerateShuffleQueue()
