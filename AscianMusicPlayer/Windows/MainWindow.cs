@@ -8,6 +8,7 @@ using Dalamud.Interface.Components;
 using Dalamud.Interface.Windowing;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Utility.Raii;
+using Dalamud.Utility;
 
 namespace AscianMusicPlayer.Windows
 {
@@ -157,14 +158,10 @@ namespace AscianMusicPlayer.Windows
             }
             else
             {
-                var titleQuery = _searchTitle.ToLowerInvariant();
-                var artistQuery = _searchArtist.ToLowerInvariant();
-                var albumQuery = _searchAlbum.ToLowerInvariant();
-
                 _filteredSongs = _displaySongs.Where(s =>
-                    (string.IsNullOrWhiteSpace(_searchTitle) || s.Title.ToLowerInvariant().Contains(titleQuery)) &&
-                    (string.IsNullOrWhiteSpace(_searchArtist) || s.Artist.ToLowerInvariant().Contains(artistQuery)) &&
-                    (string.IsNullOrWhiteSpace(_searchAlbum) || s.Album.ToLowerInvariant().Contains(albumQuery))
+                    (string.IsNullOrWhiteSpace(_searchTitle) || s.Title.Contains(_searchTitle, StringComparison.OrdinalIgnoreCase)) &&
+                    (string.IsNullOrWhiteSpace(_searchArtist) || s.Artist.Contains(_searchArtist, StringComparison.OrdinalIgnoreCase)) &&
+                    (string.IsNullOrWhiteSpace(_searchAlbum) || s.Album.Contains(_searchAlbum, StringComparison.OrdinalIgnoreCase))
                 ).ToList();
             }
         }
@@ -385,6 +382,54 @@ namespace AscianMusicPlayer.Windows
             return $"{(int)time.TotalMinutes}:{time.Seconds:D2}";
         }
 
+        private void DrawViewMenu()
+        {
+            using var menu = ImRaii.Menu("View");
+            if (!menu) return;
+
+            if (ImGui.MenuItem("Mini Player"))
+            {
+                _plugin.MiniPlayerWindow.Toggle();
+            }
+
+            DrawColumnsMenu();
+        }
+
+        private void DrawPlaybackMenu()
+        {
+            using var menu = ImRaii.Menu("Playback");
+            if (!menu) return;
+
+            DrawPlaylistMenu();
+        }
+
+        private void DrawToolsMenu()
+        {
+            using var menu = ImRaii.Menu("Tools");
+            if (!menu) return;
+
+            if (ImGui.MenuItem("Settings"))
+            {
+                _plugin.SettingsWindow.Toggle();
+            }
+        }
+
+        private void DrawHelpMenu()
+        {
+            using var menu = ImRaii.Menu("Help");
+            if (!menu) return;
+
+            if (ImGui.MenuItem("About"))
+            {
+                _plugin.AboutWindow.Toggle();
+            }
+
+            if (ImGui.MenuItem("GitHub"))
+            {
+                Util.OpenLink("https://github.com/GayPotatoEmma/Ascian-Music-Player");
+            }
+        }
+
         private void DrawPlaylistMenu()
         {
             using var menu = ImRaii.Menu("Playlists");
@@ -554,18 +599,10 @@ namespace AscianMusicPlayer.Windows
             {
                 if (menuBar)
                 {
-                    if (ImGui.MenuItem("Settings"))
-                    {
-                        _plugin.SettingsWindow.Toggle();
-                    }
-
-                    if (ImGui.MenuItem("Mini Player"))
-                    {
-                        _plugin.MiniPlayerWindow.Toggle();
-                    }
-
-                    DrawPlaylistMenu();
-                    DrawColumnsMenu();
+                    DrawViewMenu();
+                    DrawPlaybackMenu();
+                    DrawToolsMenu();
+                    DrawHelpMenu();
                 }
             }
 

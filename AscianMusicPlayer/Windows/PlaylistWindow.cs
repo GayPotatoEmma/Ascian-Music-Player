@@ -1,6 +1,5 @@
 using System;
 using System.Numerics;
-using AscianMusicPlayer.Audio;
 using Dalamud.Interface;
 using Dalamud.Interface.Components;
 using Dalamud.Interface.Windowing;

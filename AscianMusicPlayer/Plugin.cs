@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Linq;
 using Dalamud.Game.Command;
 using Dalamud.Game.Gui.Dtr;
 using Dalamud.IoC;
@@ -22,16 +21,18 @@ namespace AscianMusicPlayer
         [PluginService] public static IDtrBar DtrBar { get; private set; } = null!;
         [PluginService] public static INotificationManager NotificationManager { get; private set; } = null!;
         [PluginService] public static IChatGui ChatGui { get; private set; } = null!;
+        [PluginService] public static ITextureProvider TextureProvider { get; private set; } = null!;
 
         public static Settings Settings { get; private set; } = null!;
 
-        public WindowSystem WindowSystem = new("AscianMusicPlayer");
+        public readonly WindowSystem WindowSystem = new("AscianMusicPlayer");
         public AudioController AudioController { get; private set; }
         public PlaylistManager PlaylistManager { get; private set; }
         public MainWindow MainWindow { get; private set; }
         public SettingsWindow SettingsWindow { get; private set; }
         public MiniPlayerWindow MiniPlayerWindow { get; private set; }
         public PlaylistWindow PlaylistWindow { get; private set; }
+        public AboutWindow AboutWindow { get; private set; }
         private IDtrBarEntry? _dtrEntry;
 
         private DateTime _lastVolumeCheck = DateTime.MinValue;
@@ -49,11 +50,13 @@ namespace AscianMusicPlayer
             this.SettingsWindow = new SettingsWindow(this);
             this.MiniPlayerWindow = new MiniPlayerWindow(this);
             this.PlaylistWindow = new PlaylistWindow(this);
+            this.AboutWindow = new AboutWindow(this);
 
             this.WindowSystem.AddWindow(this.MainWindow);
             this.WindowSystem.AddWindow(this.SettingsWindow);
             this.WindowSystem.AddWindow(this.MiniPlayerWindow);
             this.WindowSystem.AddWindow(this.PlaylistWindow);
+            this.WindowSystem.AddWindow(this.AboutWindow);
 
             if (!string.IsNullOrEmpty(Settings.MediaFolder))
             {
