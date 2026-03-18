@@ -8,6 +8,8 @@ namespace AscianMusicPlayer
     {
         public int Version { get; set; } = 0;
 
+        public bool HasCompletedFirstLaunch = false;
+
         public string MediaFolder = string.Empty;
         public bool SearchSubfolders = false;
         public uint MusicChannel = 180;
@@ -15,11 +17,6 @@ namespace AscianMusicPlayer
 
         public bool BindToGameVolume = true;
         public float MusicVolume = 100f;
-
-        public float TitleColumnWidth = 0;
-        public float ArtistColumnWidth = 100;
-        public float AlbumColumnWidth = 100;
-        public float LengthColumnWidth = 85;
 
         public bool ShowArtistColumn = true;
         public bool ShowAlbumColumn = true;

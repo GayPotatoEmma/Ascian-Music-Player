@@ -35,7 +35,7 @@ namespace AscianMusicPlayer.Windows
         public SettingsWindow(Plugin plugin) : base("Settings###AscianMusicPlayerSettings")
         {
             _plugin = plugin;
-            var height = Util.IsWine() ? 440 : 405;
+            var height = Util.IsWine() ? 455 : 420;
             this.Size = new Vector2(275, height);
             this.SizeCondition = ImGuiCond.Always;
             this.Flags = ImGuiWindowFlags.NoResize;
@@ -45,6 +45,13 @@ namespace AscianMusicPlayer.Windows
             if (_selectedChannel < 0) _selectedChannel = 4;
 
             _fileDialogManager = new FileDialogManager();
+        }
+
+        public override void OnOpen()
+        {
+            _mediaFolderInput = Plugin.Settings.MediaFolder;
+            _selectedChannel = System.Array.IndexOf(_channelIds, Plugin.Settings.MusicChannel);
+            if (_selectedChannel < 0) _selectedChannel = 4;
         }
 
         public override void Draw()

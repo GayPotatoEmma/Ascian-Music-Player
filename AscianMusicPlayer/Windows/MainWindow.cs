@@ -32,11 +32,10 @@ namespace AscianMusicPlayer.Windows
         private List<int> _shuffleQueue = new();
         private int _shufflePosition = -1;
         private readonly Random _random = new();
-        private int _tableResetCounter = 1;
+
         private ImGuiTableColumnSortSpecsPtr _lastSortSpecs;
         private bool _sortDirty = true;
         private int _lastShuffleCount = 0;
-        private bool _skipNextColumnSave = false;
         private Guid? _activePlaylistId;
         private string _searchTitle = string.Empty;
         private string _searchArtist = string.Empty;
@@ -484,23 +483,6 @@ namespace AscianMusicPlayer.Windows
             {
                 Plugin.Settings.Save();
             }
-
-            ImGui.Spacing();
-            ImGui.Separator();
-
-            if (ImGui.MenuItem("Reset to Defaults"))
-            {
-                Plugin.Settings.ShowArtistColumn = true;
-                Plugin.Settings.ShowAlbumColumn = true;
-                Plugin.Settings.ShowLengthColumn = true;
-                Plugin.Settings.TitleColumnWidth = 0;
-                Plugin.Settings.ArtistColumnWidth = 100;
-                Plugin.Settings.AlbumColumnWidth = 100;
-                Plugin.Settings.LengthColumnWidth = 85;
-                Plugin.Settings.Save();
-                _tableResetCounter++;
-                _skipNextColumnSave = true;
-            }
         }
 
         private void DrawAddToPlaylistMenu(Song song, List<Playlist> availablePlaylists)
@@ -738,29 +720,47 @@ namespace AscianMusicPlayer.Windows
 
             ImGui.Spacing();
 
+            if (string.IsNullOrEmpty(Plugin.Settings.MediaFolder))
+            {
+                DrawCenteredError(
+                    "No media folder set!",
+                    new Vector4(1, 0.3f, 0.3f, 1),
+                    "Please set a media folder in Settings to load your music.");
+                return;
+            }
+
+            if (_songs.Count == 0)
+            {
+                DrawCenteredError(
+                    "No music files found!",
+                    new Vector4(1, 0.6f, 0.3f, 1),
+                    "No supported audio files (.mp3, .wav, .flac) found in:",
+                    Plugin.Settings.MediaFolder);
+                return;
+            }
+
             int columnCount = 1;
             if (Plugin.Settings.ShowArtistColumn) columnCount++;
             if (Plugin.Settings.ShowAlbumColumn) columnCount++;
             if (Plugin.Settings.ShowLengthColumn) columnCount++;
 
-            using (var table = ImRaii.Table($"SongTable##{_tableResetCounter}", columnCount, ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.ScrollY | ImGuiTableFlags.Resizable | ImGuiTableFlags.Sortable))
+            using (var table = ImRaii.Table("SongTable", columnCount, ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.ScrollY | ImGuiTableFlags.Resizable | ImGuiTableFlags.Sortable))
             {
                 if (table)
                 {
                 ImGui.TableSetupColumn("Title", ImGuiTableColumnFlags.WidthStretch | ImGuiTableColumnFlags.NoHide | ImGuiTableColumnFlags.DefaultSort | ImGuiTableColumnFlags.PreferSortAscending);
 
-                var columnScale = ImGui.GetIO().FontGlobalScale;
                 if (Plugin.Settings.ShowArtistColumn)
                 {
-                    ImGui.TableSetupColumn("Artist", ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.PreferSortAscending, Math.Max(Plugin.Settings.ArtistColumnWidth * columnScale, 80 * columnScale));
+                    ImGui.TableSetupColumn("Artist", ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.PreferSortAscending, 100);
                 }
                 if (Plugin.Settings.ShowAlbumColumn)
                 {
-                    ImGui.TableSetupColumn("Album", ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.PreferSortAscending, Math.Max(Plugin.Settings.AlbumColumnWidth * columnScale, 80 * columnScale));
+                    ImGui.TableSetupColumn("Album", ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.PreferSortAscending, 100);
                 }
                 if (Plugin.Settings.ShowLengthColumn)
                 {
-                    ImGui.TableSetupColumn("Length", ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.PreferSortAscending, Math.Max(Plugin.Settings.LengthColumnWidth * columnScale, 50 * columnScale));
+                    ImGui.TableSetupColumn("Length", ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.PreferSortAscending, 85);
                 }
 
                 ImGui.TableSetupScrollFreeze(0, 2);
@@ -911,57 +911,44 @@ namespace AscianMusicPlayer.Windows
                             ImGui.Text(song.FormattedDuration);
                         }
                     }
-
-                    if (ImGui.IsMouseReleased(ImGuiMouseButton.Left))
-                    {
-                        if (_skipNextColumnSave)
-                        {
-                            _skipNextColumnSave = false;
-                        }
-                        else
-                        {
-                            bool needsSave = false;
-
-                            if (Plugin.Settings.ShowArtistColumn)
-                            {
-                                float newArtistWidth = ImGui.GetColumnWidth(1);
-                                if (Math.Abs(newArtistWidth - Plugin.Settings.ArtistColumnWidth) > 1.0f)
-                                {
-                                    Plugin.Settings.ArtistColumnWidth = newArtistWidth;
-                                    needsSave = true;
-                                }
-                            }
-
-                            int colIndex = Plugin.Settings.ShowArtistColumn ? 2 : 1;
-                            if (Plugin.Settings.ShowAlbumColumn)
-                            {
-                                float newAlbumWidth = ImGui.GetColumnWidth(colIndex);
-                                if (Math.Abs(newAlbumWidth - Plugin.Settings.AlbumColumnWidth) > 1.0f)
-                                {
-                                    Plugin.Settings.AlbumColumnWidth = newAlbumWidth;
-                                    needsSave = true;
-                                }
-                                colIndex++;
-                            }
-
-                            if (Plugin.Settings.ShowLengthColumn)
-                            {
-                                float newLengthWidth = ImGui.GetColumnWidth(colIndex);
-                                if (Math.Abs(newLengthWidth - Plugin.Settings.LengthColumnWidth) > 1.0f)
-                                {
-                                    Plugin.Settings.LengthColumnWidth = newLengthWidth;
-                                    needsSave = true;
-                                }
-                            }
-
-                            if (needsSave)
-                            {
-                                Plugin.Settings.Save();
-                            }
-                        }
-                    }
                 }
             }
+        }
+
+        private void DrawCenteredError(string errorMessage, Vector4 errorColor, params string[] additionalLines)
+        {
+            var lineCount = 1 + additionalLines.Length;
+            var availableHeight = ImGui.GetContentRegionAvail().Y;
+            var textHeight = ImGui.GetTextLineHeight();
+            var topPadding = (availableHeight - textHeight * lineCount) / 2f;
+
+            if (topPadding > 0)
+            {
+                ImGui.SetCursorPosY(ImGui.GetCursorPosY() + topPadding);
+            }
+
+            DrawCenteredText(errorMessage, errorColor);
+
+            foreach (var line in additionalLines)
+            {
+                DrawCenteredTextDisabled(line);
+            }
+        }
+
+        private void DrawCenteredText(string text, Vector4 color)
+        {
+            var textSize = ImGui.CalcTextSize(text);
+            var contentWidth = ImGui.GetContentRegionAvail().X;
+            ImGui.SetCursorPosX((contentWidth - textSize.X) / 2f);
+            ImGui.TextColored(color, text);
+        }
+
+        private void DrawCenteredTextDisabled(string text)
+        {
+            var textSize = ImGui.CalcTextSize(text);
+            var contentWidth = ImGui.GetContentRegionAvail().X;
+            ImGui.SetCursorPosX((contentWidth - textSize.X) / 2f);
+            ImGui.TextDisabled(text);
         }
     }
 }

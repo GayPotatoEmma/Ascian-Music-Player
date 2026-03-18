@@ -33,6 +33,7 @@ namespace AscianMusicPlayer
         public MiniPlayerWindow MiniPlayerWindow { get; private set; }
         public PlaylistWindow PlaylistWindow { get; private set; }
         public AboutWindow AboutWindow { get; private set; }
+        public FirstLaunchWindow FirstLaunchWindow { get; private set; }
         private IDtrBarEntry? _dtrEntry;
 
         private DateTime _lastVolumeCheck = DateTime.MinValue;
@@ -51,14 +52,20 @@ namespace AscianMusicPlayer
             this.MiniPlayerWindow = new MiniPlayerWindow(this);
             this.PlaylistWindow = new PlaylistWindow(this);
             this.AboutWindow = new AboutWindow(this);
+            this.FirstLaunchWindow = new FirstLaunchWindow(this);
 
             this.WindowSystem.AddWindow(this.MainWindow);
             this.WindowSystem.AddWindow(this.SettingsWindow);
             this.WindowSystem.AddWindow(this.MiniPlayerWindow);
             this.WindowSystem.AddWindow(this.PlaylistWindow);
             this.WindowSystem.AddWindow(this.AboutWindow);
+            this.WindowSystem.AddWindow(this.FirstLaunchWindow);
 
-            if (!string.IsNullOrEmpty(Settings.MediaFolder))
+            if (!Settings.HasCompletedFirstLaunch)
+            {
+                this.FirstLaunchWindow.IsOpen = true;
+            }
+            else if (!string.IsNullOrEmpty(Settings.MediaFolder))
             {
                 try
                 {
