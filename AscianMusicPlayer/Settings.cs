@@ -24,6 +24,9 @@ namespace AscianMusicPlayer
 
         public bool ShowInDtr = false;
         public bool PrintSongToChat = false;
+        public bool PrintSyncedLyrics = false;
+        public bool FetchLyricsOnline = true;
+        public bool UseFlyTextForLyrics = false;
 
         public float CrossfadeDuration = 0f;
 

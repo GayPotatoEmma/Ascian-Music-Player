@@ -2,6 +2,7 @@
 using System.IO;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using NAudio.Wave;
 using Dalamud.Game.Config;
 
@@ -63,6 +64,47 @@ namespace AscianMusicPlayer.Audio
         {
         }
 
+        public static List<LyricLine> ParseSyncedLyricsStatic(string lyricsText)
+        {
+            return ParseSyncedLyrics(lyricsText);
+        }
+
+        private static List<LyricLine> ParseSyncedLyrics(string lyricsText)
+        {
+            var lines = new List<LyricLine>();
+            if (string.IsNullOrWhiteSpace(lyricsText)) return lines;
+
+            var lrcPattern = @"\[(\d{1,2}):(\d{2})\.(\d{2,3})\](.*)";
+            var matches = Regex.Matches(lyricsText, lrcPattern);
+
+            foreach (Match match in matches)
+            {
+                if (match.Success)
+                {
+                    int minutes = int.Parse(match.Groups[1].Value);
+                    int seconds = int.Parse(match.Groups[2].Value);
+                    int centiseconds = int.Parse(match.Groups[3].Value);
+
+                    int milliseconds = match.Groups[3].Value.Length == 3 
+                        ? centiseconds 
+                        : centiseconds * 10;
+
+                    string text = match.Groups[4].Value.Trim();
+
+                    if (!string.IsNullOrWhiteSpace(text))
+                    {
+                        lines.Add(new LyricLine
+                        {
+                            Time = new TimeSpan(0, 0, minutes, seconds, milliseconds),
+                            Text = text
+                        });
+                    }
+                }
+            }
+
+            return lines.OrderBy(l => l.Time).ToList();
+        }
+
         public static List<Song> LoadSongs(string folderPath)
         {
             var songs = new List<Song>();
@@ -86,7 +128,7 @@ namespace AscianMusicPlayer.Audio
                 try
                 {
                     var tfile = TagLib.File.Create(file);
-                    songs.Add(new Song
+                    var song = new Song
                     {
                         FilePath = file,
                         Title = tfile.Tag.Title ?? Path.GetFileNameWithoutExtension(file),
@@ -94,7 +136,24 @@ namespace AscianMusicPlayer.Audio
                         Album = tfile.Tag.Album ?? "Unknown",
                         AlbumArtist = tfile.Tag.FirstAlbumArtist ?? tfile.Tag.FirstPerformer ?? "Unknown",
                         Duration = tfile.Properties.Duration
-                    });
+                    };
+
+                    // Try to extract synced lyrics
+                    if (!string.IsNullOrWhiteSpace(tfile.Tag.Lyrics))
+                    {
+                        Plugin.Log.Debug($"Found lyrics in {file}: {tfile.Tag.Lyrics.Substring(0, Math.Min(100, tfile.Tag.Lyrics.Length))}...");
+                        song.SyncedLyrics = ParseSyncedLyrics(tfile.Tag.Lyrics);
+                        if (song.SyncedLyrics.Count > 0)
+                        {
+                            Plugin.Log.Information($"Loaded {song.SyncedLyrics.Count} synced lyric lines for: {song.Title}");
+                        }
+                        else
+                        {
+                            Plugin.Log.Debug($"No synced lyrics found in lyrics text for: {song.Title}");
+                        }
+                    }
+
+                    songs.Add(song);
                 }
                 catch (Exception ex)
                 {

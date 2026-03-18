@@ -35,7 +35,7 @@ namespace AscianMusicPlayer.Windows
         public SettingsWindow(Plugin plugin) : base("Settings###AscianMusicPlayerSettings")
         {
             _plugin = plugin;
-            var height = Util.IsWine() ? 455 : 420;
+            var height = Util.IsWine() ? 505 : 470;
             this.Size = new Vector2(275, height);
             this.SizeCondition = ImGuiCond.Always;
             this.Flags = ImGuiWindowFlags.NoResize;
@@ -130,6 +130,46 @@ namespace AscianMusicPlayer.Windows
             if (ImGui.IsItemHovered())
             {
                 ImGui.SetTooltip("Fade between songs (0 = disabled)");
+            }
+
+            ImGui.Spacing();
+            ImGui.Separator();
+            ImGui.Spacing();
+
+            ImGui.Text("Lyrics Settings");
+            ImGui.Separator();
+
+            if (ImGui.Checkbox("Print synced lyrics to chat", ref Plugin.Settings.PrintSyncedLyrics))
+            {
+                _plugin.SaveSettings();
+            }
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.SetTooltip("Display synced lyrics to Echo chat if available in song metadata");
+            }
+
+            if (Plugin.Settings.PrintSyncedLyrics)
+            {
+                ImGui.Indent();
+                if (ImGui.Checkbox("Fetch lyrics from LRCLIB.net", ref Plugin.Settings.FetchLyricsOnline))
+                {
+                    _plugin.SaveSettings();
+                }
+                if (ImGui.IsItemHovered())
+                {
+                    ImGui.SetTooltip("Automatically download synced lyrics if not in metadata");
+                }
+                ImGui.Unindent();
+
+                ImGui.Text("Lyrics display mode:");
+                ImGui.SetNextItemWidth(180 * ImGui.GetIO().FontGlobalScale);
+                string[] displayModes = { "Chat", "Flytext" };
+                int currentMode = Plugin.Settings.UseFlyTextForLyrics ? 1 : 0;
+                if (ImGui.Combo("##LyricsDisplayMode", ref currentMode, displayModes, displayModes.Length))
+                {
+                    Plugin.Settings.UseFlyTextForLyrics = currentMode == 1;
+                    _plugin.SaveSettings();
+                }
             }
 
             ImGui.Spacing();
