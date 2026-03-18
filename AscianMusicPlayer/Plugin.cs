@@ -42,6 +42,7 @@ namespace AscianMusicPlayer
         public PlaylistWindow PlaylistWindow { get; private set; }
         public AboutWindow AboutWindow { get; private set; }
         public FirstLaunchWindow FirstLaunchWindow { get; private set; }
+        public LyricsWindow LyricsWindow { get; private set; }
         private IDtrBarEntry? _dtrEntry;
 
         private DateTime _lastVolumeCheck = DateTime.MinValue;
@@ -67,6 +68,7 @@ namespace AscianMusicPlayer
             this.PlaylistWindow = new PlaylistWindow(this);
             this.AboutWindow = new AboutWindow(this);
             this.FirstLaunchWindow = new FirstLaunchWindow(this);
+            this.LyricsWindow = new LyricsWindow(this);
 
             this.WindowSystem.AddWindow(this.MainWindow);
             this.WindowSystem.AddWindow(this.SettingsWindow);
@@ -74,6 +76,7 @@ namespace AscianMusicPlayer
             this.WindowSystem.AddWindow(this.PlaylistWindow);
             this.WindowSystem.AddWindow(this.AboutWindow);
             this.WindowSystem.AddWindow(this.FirstLaunchWindow);
+            this.WindowSystem.AddWindow(this.LyricsWindow);
 
             if (!Settings.HasCompletedFirstLaunch)
             {
@@ -112,6 +115,11 @@ namespace AscianMusicPlayer
                 HelpMessage = "Opens the Ascian Music Player playlist manager."
             });
 
+            CommandManager.AddHandler("/amplyrics", new CommandInfo(OnCommandLyrics)
+            {
+                HelpMessage = "Opens the Ascian Music Player lyrics window."
+            });
+
             PluginInterface.UiBuilder.Draw += DrawUI;
             PluginInterface.UiBuilder.OpenMainUi += DrawMainUI;
             PluginInterface.UiBuilder.OpenConfigUi += DrawConfigUI;
@@ -144,7 +152,7 @@ namespace AscianMusicPlayer
 
         private void UpdateSyncedLyrics()
         {
-            if (!Settings.PrintSyncedLyrics || !AudioController.IsPlaying)
+            if (!AudioController.IsPlaying)
             {
                 return;
             }
@@ -152,6 +160,7 @@ namespace AscianMusicPlayer
             var currentSong = MainWindow.GetCurrentSong();
             if (currentSong == null)
             {
+                LyricsWindow.SetCurrentSong(null);
                 return;
             }
 
@@ -162,14 +171,12 @@ namespace AscianMusicPlayer
                 _isFetchingLyrics = false;
                 _lastKnownPosition = TimeSpan.Zero;
 
+                LyricsWindow.SetCurrentSong(currentSong);
+
                 if (!currentSong.HasSyncedLyrics && Settings.FetchLyricsOnline && !_isFetchingLyrics)
                 {
                     _isFetchingLyrics = true;
                     _ = FetchLyricsForCurrentSong(currentSong);
-                }
-                else if (currentSong.HasSyncedLyrics)
-                {
-                    Log.Information($"Starting synced lyrics for: {currentSong.Title} ({currentSong.SyncedLyrics.Count} lines)");
                 }
             }
 
@@ -207,20 +214,27 @@ namespace AscianMusicPlayer
 
                 if (currentTime >= lyricLine.Time)
                 {
-                    bool shouldPrint = true;
                     if (i + 1 < currentSong.SyncedLyrics.Count)
                     {
                         var nextLine = currentSong.SyncedLyrics[i + 1];
                         if (currentTime < nextLine.Time)
                         {
-                            PrintLyricToChat(lyricLine.Text);
+                            if (Settings.PrintSyncedLyrics)
+                            {
+                                PrintLyricToChat(lyricLine.Text);
+                            }
                             _lastLyricIndex = i;
+                            LyricsWindow.UpdateCurrentLyricIndex(i);
                         }
                     }
                     else
                     {
-                        PrintLyricToChat(lyricLine.Text);
+                        if (Settings.PrintSyncedLyrics)
+                        {
+                            PrintLyricToChat(lyricLine.Text);
+                        }
                         _lastLyricIndex = i;
+                        LyricsWindow.UpdateCurrentLyricIndex(i);
                     }
                     break;
                 }
@@ -235,7 +249,6 @@ namespace AscianMusicPlayer
                 if (lyrics.Count > 0)
                 {
                     song.SyncedLyrics = lyrics;
-                    Log.Information($"Successfully fetched {lyrics.Count} synced lyric lines for: {song.Title}");
                     _lastLyricIndex = -1;
                 }
             }
@@ -275,7 +288,6 @@ namespace AscianMusicPlayer
             {
                 if (Settings.UseFlyTextForLyrics)
                 {
-                    Log.Information($"Printing lyric as flytext: {lyric}");
                     FlyTextGui.AddFlyText(
                         FlyTextKind.Named,
                         1,
@@ -290,7 +302,6 @@ namespace AscianMusicPlayer
                 }
                 else
                 {
-                    Log.Information($"Printing lyric to chat: {lyric}");
                     ChatGui.Print($"♪ {lyric}", "AMP", 56);
                 }
             }
@@ -357,34 +368,6 @@ namespace AscianMusicPlayer
                     Log.Information($"Repeat: {repeatModes[MainWindow.GetRepeatMode()]}");
                     break;
 
-                case "lyrics":
-                case "lyric":
-                    var currentSong = MainWindow.GetCurrentSong();
-                    if (currentSong == null)
-                    {
-                        ChatGui.Print("No song is currently playing.", "AMP", 56);
-                        Log.Information("No song is currently playing");
-                    }
-                    else if (!currentSong.HasSyncedLyrics)
-                    {
-                        ChatGui.Print($"'{currentSong.Title}' has no synced lyrics.", "AMP", 56);
-                        Log.Information($"Song '{currentSong.Title}' has no synced lyrics");
-                    }
-                    else
-                    {
-                        ChatGui.Print($"'{currentSong.Title}' has {currentSong.SyncedLyrics.Count} synced lyric lines:", "AMP", 56);
-                        Log.Information($"Song '{currentSong.Title}' has {currentSong.SyncedLyrics.Count} synced lyric lines");
-                        foreach (var line in currentSong.SyncedLyrics.Take(3))
-                        {
-                            Log.Information($"  [{line.Time:mm\\:ss\\.ff}] {line.Text}");
-                        }
-                        if (currentSong.SyncedLyrics.Count > 3)
-                        {
-                            Log.Information($"  ... and {currentSong.SyncedLyrics.Count - 3} more lines");
-                        }
-                    }
-                    break;
-
                 case "fetchlyrics":
                     var song = MainWindow.GetCurrentSong();
                     if (song == null)
@@ -400,7 +383,7 @@ namespace AscianMusicPlayer
 
                 default:
                     Log.Warning($"Unknown command: /amp {argList[0]}");
-                    Log.Information("Usage: /amp [play|pause|next|previous|shuffle|repeat|lyrics|fetchlyrics]");
+                    Log.Information("Usage: /amp [play|pause|next|previous|shuffle|repeat|fetchlyrics]");
                     break;
             }
         }
@@ -418,6 +401,11 @@ namespace AscianMusicPlayer
         private void OnCommandPlaylist(string command, string args)
         {
             this.PlaylistWindow.Toggle();
+        }
+
+        private void OnCommandLyrics(string command, string args)
+        {
+            this.LyricsWindow.Toggle();
         }
 
         private void DrawUI()
@@ -570,6 +558,7 @@ namespace AscianMusicPlayer
             CommandManager.RemoveHandler("/ampmini");
             CommandManager.RemoveHandler("/ampsettings");
             CommandManager.RemoveHandler("/ampplaylist");
+            CommandManager.RemoveHandler("/amplyrics");
         }
     }
 }

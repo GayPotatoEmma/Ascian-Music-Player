@@ -391,6 +391,11 @@ namespace AscianMusicPlayer.Windows
                 _plugin.MiniPlayerWindow.Toggle();
             }
 
+            if (ImGui.MenuItem("Lyrics"))
+            {
+                _plugin.LyricsWindow.Toggle();
+            }
+
             DrawColumnsMenu();
         }
 
