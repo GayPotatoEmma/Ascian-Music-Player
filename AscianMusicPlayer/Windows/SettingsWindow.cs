@@ -139,13 +139,13 @@ namespace AscianMusicPlayer.Windows
             ImGui.Text("Lyrics Settings");
             ImGui.Separator();
 
-            if (ImGui.Checkbox("Print synced lyrics to chat", ref Plugin.Settings.PrintSyncedLyrics))
+            if (ImGui.Checkbox("Enable synced lyrics", ref Plugin.Settings.PrintSyncedLyrics))
             {
                 _plugin.SaveSettings();
             }
             if (ImGui.IsItemHovered())
             {
-                ImGui.SetTooltip("Display synced lyrics to Echo chat if available in song metadata");
+                ImGui.SetTooltip("Display synced lyrics if available in song metadata");
             }
 
             if (Plugin.Settings.PrintSyncedLyrics)

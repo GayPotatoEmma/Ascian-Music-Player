@@ -51,6 +51,7 @@ namespace AscianMusicPlayer
         private int _lastLyricIndex = -1;
         private Song? _currentLyricSong = null;
         private bool _isFetchingLyrics = false;
+        private TimeSpan _lastKnownPosition = TimeSpan.Zero;
 
         public Plugin()
         {
@@ -159,6 +160,7 @@ namespace AscianMusicPlayer
                 _currentLyricSong = currentSong;
                 _lastLyricIndex = -1;
                 _isFetchingLyrics = false;
+                _lastKnownPosition = TimeSpan.Zero;
 
                 if (!currentSong.HasSyncedLyrics && Settings.FetchLyricsOnline && !_isFetchingLyrics)
                 {
@@ -177,6 +179,27 @@ namespace AscianMusicPlayer
             }
 
             var currentTime = AudioController.CurrentTime;
+
+            if (Math.Abs((currentTime - _lastKnownPosition).TotalSeconds) > 1.0)
+            {
+                _lastLyricIndex = -1;
+                for (int i = 0; i < currentSong.SyncedLyrics.Count; i++)
+                {
+                    if (currentTime >= currentSong.SyncedLyrics[i].Time)
+                    {
+                        _lastLyricIndex = i;
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+                _lastKnownPosition = currentTime;
+            }
+            else
+            {
+                _lastKnownPosition = currentTime;
+            }
 
             for (int i = _lastLyricIndex + 1; i < currentSong.SyncedLyrics.Count; i++)
             {
