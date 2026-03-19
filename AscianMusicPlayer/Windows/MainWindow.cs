@@ -412,41 +412,6 @@ namespace AscianMusicPlayer.Windows
 
         private void DrawPlaybackMenu()
         {
-            using var menu = ImRaii.Menu("Playback");
-            if (!menu) return;
-
-            DrawPlaylistMenu();
-        }
-
-        private void DrawToolsMenu()
-        {
-            using var menu = ImRaii.Menu("Tools");
-            if (!menu) return;
-
-            if (ImGui.MenuItem("Settings"))
-            {
-                _plugin.SettingsWindow.Toggle();
-            }
-        }
-
-        private void DrawHelpMenu()
-        {
-            using var menu = ImRaii.Menu("Help");
-            if (!menu) return;
-
-            if (ImGui.MenuItem("About"))
-            {
-                _plugin.AboutWindow.Toggle();
-            }
-
-            if (ImGui.MenuItem("GitHub"))
-            {
-                Util.OpenLink("https://github.com/GayPotatoEmma/Ascian-Music-Player");
-            }
-        }
-
-        private void DrawPlaylistMenu()
-        {
             using var menu = ImRaii.Menu("Playlists");
             if (!menu) return;
 
@@ -474,6 +439,33 @@ namespace AscianMusicPlayer.Windows
                         SetActivePlaylist(playlist.Id);
                     }
                 }
+            }
+        }
+
+        private void DrawToolsMenu()
+        {
+            using var menu = ImRaii.Menu("Tools");
+            if (!menu) return;
+
+            if (ImGui.MenuItem("Settings"))
+            {
+                _plugin.SettingsWindow.Toggle();
+            }
+        }
+
+        private void DrawHelpMenu()
+        {
+            using var menu = ImRaii.Menu("Help");
+            if (!menu) return;
+
+            if (ImGui.MenuItem("About"))
+            {
+                _plugin.AboutWindow.Toggle();
+            }
+
+            if (ImGui.MenuItem("GitHub"))
+            {
+                Util.OpenLink("https://github.com/GayPotatoEmma/Ascian-Music-Player");
             }
         }
 
@@ -605,99 +597,98 @@ namespace AscianMusicPlayer.Windows
             }
 
             var scale = ImGui.GetIO().FontGlobalScale;
-            ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(5, 5));
-            ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(3, 0));
+            using (ImRaii.PushStyle(ImGuiStyleVar.FramePadding, new Vector2(5, 5)))
+            using (ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing, new Vector2(3, 0)))
+            {
+                float buttonWidth = 40f;
+                float spacing = ImGui.GetStyle().ItemSpacing.X;
+                float totalWidth = (5 * buttonWidth * scale) + (4 * spacing);
+                float windowWidth = ImGui.GetContentRegionAvail().X;
+                float offset = (windowWidth - totalWidth) / 2f;
 
-            float buttonWidth = 40f;
-            float spacing = ImGui.GetStyle().ItemSpacing.X;
-            float totalWidth = (5 * buttonWidth * scale) + (4 * spacing);
-            float windowWidth = ImGui.GetContentRegionAvail().X;
-            float offset = (windowWidth - totalWidth) / 2f;
-
-            if (offset > 0)
-            {
-                ImGui.SetCursorPosX(ImGui.GetCursorPosX() + offset);
-            }
-
-            Vector4? shuffleColor = _isShuffle ? new Vector4(0.2f, 0.8f, 1.0f, 1.0f) : null;
-            if (ImGuiComponents.IconButton(FontAwesomeIcon.Random, shuffleColor, activeColor: null, hoveredColor: null, size: new Vector2(40, 0)))
-            {
-                ToggleShuffle();
-            }
-            if (ImGui.IsItemHovered())
-            {
-                ImGui.SetTooltip(_isShuffle ? "Shuffle: ON" : "Shuffle: OFF");
-            }
-
-            ImGui.SameLine();
-            if (ImGuiComponents.IconButton(FontAwesomeIcon.StepBackward, new Vector2(40, 0)))
-            {
-                PlayPrevious();
-            }
-            if (ImGui.IsItemHovered())
-            {
-                ImGui.SetTooltip("Previous");
-            }
-
-            ImGui.SameLine();
-            if (ImGuiComponents.IconButton(_plugin.AudioController.IsPlaying ? FontAwesomeIcon.Pause : FontAwesomeIcon.Play, new Vector2(40, 0)))
-            {
-                if (_plugin.AudioController.IsPlaying)
+                if (offset > 0)
                 {
-                    _plugin.AudioController.Pause();
-                    _plugin.UpdateDtr();
+                    ImGui.SetCursorPosX(ImGui.GetCursorPosX() + offset);
                 }
-                else if (_plugin.AudioController.IsPaused)
-                {
-                    _plugin.AudioController.Resume();
-                    _plugin.UpdateDtr();
-                }
-                else if (_selectedSongIndex >= 0 && _selectedSongIndex < _displaySongs.Count)
-                {
-                    PlaySong(_displaySongs[_selectedSongIndex]);
-                }
-            }
-            if (ImGui.IsItemHovered())
-            {
-                ImGui.SetTooltip(_plugin.AudioController.IsPlaying ? "Pause" : "Play");
-            }
 
-            ImGui.SameLine();
-            if (ImGuiComponents.IconButton(FontAwesomeIcon.StepForward, new Vector2(40, 0)))
-            {
-                PlayNext();
-            }
-            if (ImGui.IsItemHovered())
-            {
-                ImGui.SetTooltip("Next");
-            }
-
-            ImGui.SameLine();
-            Vector4? repeatColor = _repeatMode != RepeatMode.Off ? new Vector4(0.2f, 0.8f, 1.0f, 1.0f) : null;
-            var repeatIcon = _repeatMode switch
-            {
-                RepeatMode.Off => FontAwesomeIcon.Redo,
-                RepeatMode.All => FontAwesomeIcon.Redo,
-                RepeatMode.One => FontAwesomeIcon.Music,
-                _ => FontAwesomeIcon.Redo
-            };
-            if (ImGuiComponents.IconButton(repeatIcon, repeatColor, activeColor: null, hoveredColor: null, size: new Vector2(40, 0)))
-            {
-                ToggleRepeat();
-            }
-            if (ImGui.IsItemHovered())
-            {
-                string repeatTooltip = _repeatMode switch
+                Vector4? shuffleColor = _isShuffle ? new Vector4(0.2f, 0.8f, 1.0f, 1.0f) : null;
+                if (ImGuiComponents.IconButton(FontAwesomeIcon.Random, shuffleColor, activeColor: null, hoveredColor: null, size: new Vector2(40, 0)))
                 {
-                    RepeatMode.Off => "Repeat: OFF",
-                    RepeatMode.All => "Repeat: ALL",
-                    RepeatMode.One => "Repeat: ONE",
-                    _ => "Repeat: OFF"
+                    ToggleShuffle();
+                }
+                if (ImGui.IsItemHovered())
+                {
+                    ImGui.SetTooltip(_isShuffle ? "Shuffle: ON" : "Shuffle: OFF");
+                }
+
+                ImGui.SameLine();
+                if (ImGuiComponents.IconButton(FontAwesomeIcon.StepBackward, new Vector2(40, 0)))
+                {
+                    PlayPrevious();
+                }
+                if (ImGui.IsItemHovered())
+                {
+                    ImGui.SetTooltip("Previous");
+                }
+
+                ImGui.SameLine();
+                if (ImGuiComponents.IconButton(_plugin.AudioController.IsPlaying ? FontAwesomeIcon.Pause : FontAwesomeIcon.Play, new Vector2(40, 0)))
+                {
+                    if (_plugin.AudioController.IsPlaying)
+                    {
+                        _plugin.AudioController.Pause();
+                        _plugin.UpdateDtr();
+                    }
+                    else if (_plugin.AudioController.IsPaused)
+                    {
+                        _plugin.AudioController.Resume();
+                        _plugin.UpdateDtr();
+                    }
+                    else if (_selectedSongIndex >= 0 && _selectedSongIndex < _displaySongs.Count)
+                    {
+                        PlaySong(_displaySongs[_selectedSongIndex]);
+                    }
+                }
+                if (ImGui.IsItemHovered())
+                {
+                    ImGui.SetTooltip(_plugin.AudioController.IsPlaying ? "Pause" : "Play");
+                }
+
+                ImGui.SameLine();
+                if (ImGuiComponents.IconButton(FontAwesomeIcon.StepForward, new Vector2(40, 0)))
+                {
+                    PlayNext();
+                }
+                if (ImGui.IsItemHovered())
+                {
+                    ImGui.SetTooltip("Next");
+                }
+
+                ImGui.SameLine();
+                Vector4? repeatColor = _repeatMode != RepeatMode.Off ? new Vector4(0.2f, 0.8f, 1.0f, 1.0f) : null;
+                var repeatIcon = _repeatMode switch
+                {
+                    RepeatMode.Off => FontAwesomeIcon.Redo,
+                    RepeatMode.All => FontAwesomeIcon.Redo,
+                    RepeatMode.One => FontAwesomeIcon.Music,
+                    _ => FontAwesomeIcon.Redo
                 };
-                ImGui.SetTooltip(repeatTooltip);
+                if (ImGuiComponents.IconButton(repeatIcon, repeatColor, activeColor: null, hoveredColor: null, size: new Vector2(40, 0)))
+                {
+                    ToggleRepeat();
+                }
+                if (ImGui.IsItemHovered())
+                {
+                    string repeatTooltip = _repeatMode switch
+                    {
+                        RepeatMode.Off => "Repeat: OFF",
+                        RepeatMode.All => "Repeat: ALL",
+                        RepeatMode.One => "Repeat: ONE",
+                        _ => "Repeat: OFF"
+                    };
+                    ImGui.SetTooltip(repeatTooltip);
+                }
             }
-
-            ImGui.PopStyleVar(2);
 
             ImGui.Spacing();
 
@@ -786,36 +777,39 @@ namespace AscianMusicPlayer.Windows
 
                 ImGui.TableSetColumnIndex(0);
                 ImGui.SetNextItemWidth(-1);
-                ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(0, 0));
-                if (ImGui.InputTextWithHint("##SearchTitle", "", ref _searchTitle, 256))
+                using (ImRaii.PushStyle(ImGuiStyleVar.FramePadding, new Vector2(0, 0)))
                 {
-                    ApplySearchFilter();
+                    if (ImGui.InputTextWithHint("##SearchTitle", "", ref _searchTitle, 256))
+                    {
+                        ApplySearchFilter();
+                    }
                 }
-                ImGui.PopStyleVar();
 
                 int searchCol = 1;
                 if (Plugin.Settings.ShowArtistColumn)
                 {
                     ImGui.TableSetColumnIndex(searchCol);
                     ImGui.SetNextItemWidth(-1);
-                    ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(0, 0));
-                    if (ImGui.InputTextWithHint("##SearchArtist", "", ref _searchArtist, 256))
+                    using (ImRaii.PushStyle(ImGuiStyleVar.FramePadding, new Vector2(0, 0)))
                     {
-                        ApplySearchFilter();
+                        if (ImGui.InputTextWithHint("##SearchArtist", "", ref _searchArtist, 256))
+                        {
+                            ApplySearchFilter();
+                        }
                     }
-                    ImGui.PopStyleVar();
                     searchCol++;
                 }
                 if (Plugin.Settings.ShowAlbumColumn)
                 {
                     ImGui.TableSetColumnIndex(searchCol);
                     ImGui.SetNextItemWidth(-1);
-                    ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(0, 0));
-                    if (ImGui.InputTextWithHint("##SearchAlbum", "", ref _searchAlbum, 256))
+                    using (ImRaii.PushStyle(ImGuiStyleVar.FramePadding, new Vector2(0, 0)))
                     {
-                        ApplySearchFilter();
+                        if (ImGui.InputTextWithHint("##SearchAlbum", "", ref _searchAlbum, 256))
+                        {
+                            ApplySearchFilter();
+                        }
                     }
-                    ImGui.PopStyleVar();
                     searchCol++;
                 }
                 if (Plugin.Settings.ShowLengthColumn)
@@ -895,20 +889,15 @@ namespace AscianMusicPlayer.Windows
 
                     ImGui.TableNextColumn();
                     bool isSelected = _selectedSongIndex >= 0 && _selectedSongIndex < _displaySongs.Count && _displaySongs[_selectedSongIndex] == song;
-                    if (isSelected)
+                    using (isSelected ? ImRaii.PushColor(ImGuiCol.Header, new Vector4(0.2f, 0.8f, 1.0f, 0.4f)) : null)
+                    using (isSelected ? ImRaii.PushColor(ImGuiCol.HeaderHovered, new Vector4(0.2f, 0.8f, 1.0f, 0.5f)) : null)
+                    using (isSelected ? ImRaii.PushColor(ImGuiCol.HeaderActive, new Vector4(0.2f, 0.8f, 1.0f, 0.6f)) : null)
                     {
-                        ImGui.PushStyleColor(ImGuiCol.Header, new Vector4(0.2f, 0.8f, 1.0f, 0.4f));
-                        ImGui.PushStyleColor(ImGuiCol.HeaderHovered, new Vector4(0.2f, 0.8f, 1.0f, 0.5f));
-                        ImGui.PushStyleColor(ImGuiCol.HeaderActive, new Vector4(0.2f, 0.8f, 1.0f, 0.6f));
-                    }
-                    if (ImGui.Selectable(song.Title, isSelected, ImGuiSelectableFlags.SpanAllColumns))
-                    {
-                        _selectedSongIndex = _displaySongs.IndexOf(song);
-                        PlaySong(song);
-                    }
-                    if (isSelected)
-                    {
-                        ImGui.PopStyleColor(3);
+                        if (ImGui.Selectable(song.Title, isSelected, ImGuiSelectableFlags.SpanAllColumns))
+                        {
+                            _selectedSongIndex = _displaySongs.IndexOf(song);
+                            PlaySong(song);
+                        }
                     }
 
                     using (var popup = ImRaii.ContextPopupItem($"songContext_{i}"))
