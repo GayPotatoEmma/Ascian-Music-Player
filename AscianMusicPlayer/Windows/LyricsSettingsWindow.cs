@@ -23,6 +23,12 @@ namespace AscianMusicPlayer.Windows
             using var tabBar = ImRaii.TabBar("LyricsSettingsTabBar");
             if (!tabBar) return;
 
+            using (var generalTab = ImRaii.TabItem("General"))
+            {
+                if (generalTab)
+                    DrawGeneralTab();
+            }
+
             using (var windowTab = ImRaii.TabItem("Window"))
             {
                 if (windowTab)
@@ -42,6 +48,56 @@ namespace AscianMusicPlayer.Windows
             }
         }
 
+        private void DrawGeneralTab()
+        {
+            using var itemWidth = ImRaii.ItemWidth(180);
+
+            DrawSectionHeader("Display Mode");
+
+            ImGui.Text("Lyrics display mode");
+            string[] displayModes = ["None", "Chat", "Flytext"];
+            int currentMode = Plugin.Settings.LyricsDisplayMode;
+            if (ImGui.Combo("##LyricsDisplayMode", ref currentMode, displayModes, displayModes.Length))
+            {
+                Plugin.Settings.LyricsDisplayMode = currentMode;
+                _plugin.SaveSettings();
+            }
+            DrawTooltip("How to display synced lyrics\nNone: Disabled\nChat: Print to chat\nFlytext: Show as flytext");
+
+            if (Plugin.Settings.LyricsDisplayMode == 2)
+            {
+                ImGui.Spacing();
+                using var indent = ImRaii.PushIndent();
+                var color = Plugin.Settings.FlyTextLyricColor;
+                var r = (color >> 0) & 0xFF;
+                var g = (color >> 8) & 0xFF;
+                var b = (color >> 16) & 0xFF;
+                var a = (color >> 24) & 0xFF;
+                var colorVec = new Vector4(r / 255f, g / 255f, b / 255f, a / 255f);
+
+                if (ImGui.ColorEdit4("Flytext color", ref colorVec, ImGuiColorEditFlags.NoInputs))
+                {
+                    r = (uint)(colorVec.X * 255);
+                    g = (uint)(colorVec.Y * 255);
+                    b = (uint)(colorVec.Z * 255);
+                    a = (uint)(colorVec.W * 255);
+                    Plugin.Settings.FlyTextLyricColor = r | (g << 8) | (b << 16) | (a << 24);
+                    _plugin.SaveSettings();
+                }
+            }
+
+            ImGui.Spacing();
+            ImGui.Spacing();
+
+            DrawSectionHeader("Online Lyrics");
+
+            if (ImGui.Checkbox("Fetch lyrics from LRCLIB.net", ref Plugin.Settings.FetchLyricsOnline))
+            {
+                _plugin.SaveSettings();
+            }
+            DrawTooltip("Automatically download synced lyrics if no .lrc file exists");
+        }
+
         private void DrawWindowTab()
         {
             using var itemWidth = ImRaii.ItemWidth(200);
@@ -50,7 +106,7 @@ namespace AscianMusicPlayer.Windows
 
             ImGui.Text("Width");
             int width = Plugin.Settings.LyricsWindowWidth;
-            if (ImGui.SliderInt("##LyricsWidth", ref width, 300, 1000))
+            if (ImGui.SliderInt("##LyricsWidth", ref width, 300, 1000, "%d", ImGuiSliderFlags.AlwaysClamp))
             {
                 Plugin.Settings.LyricsWindowWidth = width;
                 _plugin.SaveSettings();
@@ -60,7 +116,7 @@ namespace AscianMusicPlayer.Windows
 
             ImGui.Text("Height");
             int height = Plugin.Settings.LyricsWindowHeight;
-            if (ImGui.SliderInt("##LyricsHeight", ref height, 100, 500))
+            if (ImGui.SliderInt("##LyricsHeight", ref height, 100, 500, "%d", ImGuiSliderFlags.AlwaysClamp))
             {
                 Plugin.Settings.LyricsWindowHeight = height;
                 _plugin.SaveSettings();
@@ -73,7 +129,7 @@ namespace AscianMusicPlayer.Windows
 
             ImGui.Text("Background Opacity");
             float bgAlpha = Plugin.Settings.LyricsWindowBgAlpha;
-            if (ImGui.SliderFloat("##BgAlpha", ref bgAlpha, 0.0f, 1.0f, "%.2f"))
+            if (ImGui.SliderFloat("##BgAlpha", ref bgAlpha, 0.0f, 1.0f, "%.2f", ImGuiSliderFlags.AlwaysClamp))
             {
                 Plugin.Settings.LyricsWindowBgAlpha = bgAlpha;
                 _plugin.SaveSettings();
@@ -99,7 +155,7 @@ namespace AscianMusicPlayer.Windows
 
             ImGui.Text("Next Lines:");
             int nextLineCount = Plugin.Settings.LyricsNextLineCount;
-            if (ImGui.SliderInt("##NextLineCount", ref nextLineCount, 0, 5))
+            if (ImGui.SliderInt("##NextLineCount", ref nextLineCount, 0, 5, "%d", ImGuiSliderFlags.AlwaysClamp))
             {
                 Plugin.Settings.LyricsNextLineCount = nextLineCount;
                 _plugin.SaveSettings();
@@ -113,7 +169,7 @@ namespace AscianMusicPlayer.Windows
 
             ImGui.Text("Current Line");
             float currentScale = Plugin.Settings.LyricsCurrentLineScale;
-            if (ImGui.SliderFloat("##CurrentScale", ref currentScale, 0.5f, 3.0f, "%.1f"))
+            if (ImGui.SliderFloat("##CurrentScale", ref currentScale, 0.5f, 3.0f, "%.1f", ImGuiSliderFlags.AlwaysClamp))
             {
                 Plugin.Settings.LyricsCurrentLineScale = currentScale;
                 _plugin.SaveSettings();
@@ -125,7 +181,7 @@ namespace AscianMusicPlayer.Windows
 
             ImGui.Text("Next Lines");
             float nextScale = Plugin.Settings.LyricsNextLineScale;
-            if (ImGui.SliderFloat("##NextScale", ref nextScale, 0.5f, 2.0f, "%.1f"))
+            if (ImGui.SliderFloat("##NextScale", ref nextScale, 0.5f, 2.0f, "%.1f", ImGuiSliderFlags.AlwaysClamp))
             {
                 Plugin.Settings.LyricsNextLineScale = nextScale;
                 _plugin.SaveSettings();
@@ -140,7 +196,7 @@ namespace AscianMusicPlayer.Windows
 
             ImGui.Text("Horizontal");
             float horizAlign = Plugin.Settings.LyricsHorizontalAlignment;
-            if (ImGui.SliderFloat("##HorizAlign", ref horizAlign, 0.0f, 1.0f, "%.2f"))
+            if (ImGui.SliderFloat("##HorizAlign", ref horizAlign, 0.0f, 1.0f, "%.2f", ImGuiSliderFlags.AlwaysClamp))
             {
                 Plugin.Settings.LyricsHorizontalAlignment = horizAlign;
                 _plugin.SaveSettings();
@@ -151,7 +207,7 @@ namespace AscianMusicPlayer.Windows
 
             ImGui.Text("Vertical");
             float vertAlign = Plugin.Settings.LyricsVerticalAlignment;
-            if (ImGui.SliderFloat("##VertAlign", ref vertAlign, 0.0f, 1.0f, "%.2f"))
+            if (ImGui.SliderFloat("##VertAlign", ref vertAlign, 0.0f, 1.0f, "%.2f", ImGuiSliderFlags.AlwaysClamp))
             {
                 Plugin.Settings.LyricsVerticalAlignment = vertAlign;
                 _plugin.SaveSettings();

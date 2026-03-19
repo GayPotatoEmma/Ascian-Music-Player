@@ -406,7 +406,7 @@ namespace AscianMusicPlayer.Windows
                         _plugin.LyricsWindow.Toggle();
                     }
 
-                    if (ImGui.MenuItem("Overlay Settings"))
+                    if (ImGui.MenuItem("Lyrics Settings"))
                     {
                         _plugin.LyricsSettingsWindow.Toggle();
                     }

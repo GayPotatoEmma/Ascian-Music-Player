@@ -72,12 +72,6 @@ namespace AscianMusicPlayer.Windows
                     ImGui.EndTabItem();
                 }
 
-                if (ImGui.BeginTabItem("Lyrics"))
-                {
-                    DrawLyricsTab();
-                    ImGui.EndTabItem();
-                }
-
                 if (ImGui.BeginTabItem("Library"))
                 {
                     DrawLibraryTab();
@@ -166,58 +160,6 @@ namespace AscianMusicPlayer.Windows
             if (ImGui.Checkbox("Print current song to chat", ref Plugin.Settings.PrintSongToChat))
             {
                 _plugin.SaveSettings();
-            }
-        }
-
-        private void DrawLyricsTab()
-        {
-            ImGui.TextColored(new Vector4(0.2f, 0.8f, 1.0f, 1.0f), "Lyrics Settings");
-            ImGui.Separator();
-
-            ImGui.Text("Lyrics display mode");
-            ImGui.SetNextItemWidth(180 * ImGui.GetIO().FontGlobalScale);
-            string[] displayModes = { "None", "Chat", "Flytext" };
-            int currentMode = Plugin.Settings.LyricsDisplayMode;
-            if (ImGui.Combo("##LyricsDisplayMode", ref currentMode, displayModes, displayModes.Length))
-            {
-                Plugin.Settings.LyricsDisplayMode = currentMode;
-                _plugin.SaveSettings();
-            }
-            if (ImGui.IsItemHovered())
-            {
-                ImGui.SetTooltip("How to display synced lyrics\nNone: Disabled\nChat: Print to chat\nFlytext: Show as flytext");
-            }
-
-            if (Plugin.Settings.LyricsDisplayMode == 2)
-            {
-                using var indent = ImRaii.PushIndent();
-                var color = Plugin.Settings.FlyTextLyricColor;
-                var r = (color >> 0) & 0xFF;
-                var g = (color >> 8) & 0xFF;
-                var b = (color >> 16) & 0xFF;
-                var a = (color >> 24) & 0xFF;
-                var colorVec = new Vector4(r / 255f, g / 255f, b / 255f, a / 255f);
-
-                if (ImGui.ColorEdit4("Flytext color", ref colorVec, ImGuiColorEditFlags.NoInputs))
-                {
-                    r = (uint)(colorVec.X * 255);
-                    g = (uint)(colorVec.Y * 255);
-                    b = (uint)(colorVec.Z * 255);
-                    a = (uint)(colorVec.W * 255);
-                    Plugin.Settings.FlyTextLyricColor = r | (g << 8) | (b << 16) | (a << 24);
-                    _plugin.SaveSettings();
-                }
-            }
-
-            ImGui.Spacing();
-
-            if (ImGui.Checkbox("Fetch lyrics from LRCLIB.net", ref Plugin.Settings.FetchLyricsOnline))
-            {
-                _plugin.SaveSettings();
-            }
-            if (ImGui.IsItemHovered())
-            {
-                ImGui.SetTooltip("Automatically download synced lyrics if no .lrc file exists");
             }
         }
 
