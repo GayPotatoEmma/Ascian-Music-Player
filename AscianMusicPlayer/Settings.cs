@@ -40,6 +40,10 @@ namespace AscianMusicPlayer
         public float LyricsWindowBgAlpha = 0.9f;
         public bool LyricsWindowClickthrough = false;
 
+        public string LyricsSystemFontName = string.Empty;
+        public uint LyricsCurrentLineColor = 0xFFFFFFFF;
+        public uint LyricsNextLineColor = 0xFF999999;
+
         public List<Playlist> Playlists { get; set; } = new();
 
         public const uint ChannelBgm = 175;

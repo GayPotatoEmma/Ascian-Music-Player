@@ -1,4 +1,6 @@
 using System.Numerics;
+using System.Drawing.Text;
+using System.Linq;
 using Dalamud.Interface.Windowing;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Utility.Raii;
@@ -10,12 +12,38 @@ namespace AscianMusicPlayer.Windows
         private static readonly Vector4 SectionColor = new(0.2f, 0.8f, 1.0f, 1.0f);
         private readonly Plugin _plugin;
 
+        private string[] _allFontNames = [];
+
         public LyricsSettingsWindow(Plugin plugin) : base("Lyrics Settings###AscianMusicPlayerLyricsSettings")
         {
             _plugin = plugin;
             Size = new Vector2(275, 350);
             SizeCondition = ImGuiCond.Always;
             Flags = ImGuiWindowFlags.NoResize;
+            LoadFonts();
+        }
+
+        private void LoadFonts()
+        {
+            try
+            {
+                var gameFonts = new[] { "Game: Axis", "Game: Jupiter", "Game: Jupiter Numeric", "Game: Meidinger", "Game: Meidinger Mid", "Game: Trump Gothic" };
+
+                using var installedFonts = new InstalledFontCollection();
+                var systemFonts = installedFonts.Families
+                    .Select(f => f.Name)
+                    .Where(n => !string.IsNullOrWhiteSpace(n))
+                    .OrderBy(n => n);
+
+                _allFontNames = new[] { "Dalamud Default" }
+                    .Concat(gameFonts)
+                    .Concat(systemFonts)
+                    .ToArray();
+            }
+            catch
+            {
+                _allFontNames = ["Dalamud Default"];
+            }
         }
 
         public override void Draw()
@@ -151,6 +179,59 @@ namespace AscianMusicPlayer.Windows
         {
             using var itemWidth = ImRaii.ItemWidth(200);
 
+            DrawSectionHeader("Font");
+
+            ImGui.Text("Font");
+
+            var currentFontName = Plugin.Settings.LyricsSystemFontName;
+            if (string.IsNullOrEmpty(currentFontName))
+            {
+                currentFontName = "Dalamud Default";
+            }
+
+            using (var combo = ImRaii.Combo("##LyricsFont", currentFontName))
+            {
+                if (combo)
+                {
+                    foreach (var fontName in _allFontNames)
+                    {
+                        bool isSelected = fontName == currentFontName;
+                        if (ImGui.Selectable(fontName, isSelected))
+                        {
+                            Plugin.Settings.LyricsSystemFontName = fontName;
+                            _plugin.SaveSettings();
+                            _plugin.RebuildLyricsFont();
+                        }
+                        if (isSelected)
+                        {
+                            ImGui.SetItemDefaultFocus();
+                        }
+                    }
+                }
+            }
+
+            ImGui.Spacing();
+            ImGui.Spacing();
+
+            DrawSectionHeader("Font Colors");
+
+            var currentColor = UintToVec4(Plugin.Settings.LyricsCurrentLineColor);
+            if (ImGui.ColorEdit4("Current Line", ref currentColor, ImGuiColorEditFlags.NoInputs))
+            {
+                Plugin.Settings.LyricsCurrentLineColor = Vec4ToUint(currentColor);
+                _plugin.SaveSettings();
+            }
+
+            var nextColor = UintToVec4(Plugin.Settings.LyricsNextLineColor);
+            if (ImGui.ColorEdit4("Next Lines", ref nextColor, ImGuiColorEditFlags.NoInputs))
+            {
+                Plugin.Settings.LyricsNextLineColor = Vec4ToUint(nextColor);
+                _plugin.SaveSettings();
+            }
+
+            ImGui.Spacing();
+            ImGui.Spacing();
+
             DrawSectionHeader("Lines Shown");
 
             ImGui.Text("Next Lines:");
@@ -275,6 +356,24 @@ namespace AscianMusicPlayer.Windows
         {
             if (ImGui.IsItemHovered())
                 ImGui.SetTooltip(text);
+        }
+
+        private static Vector4 UintToVec4(uint color)
+        {
+            var r = (color >> 0) & 0xFF;
+            var g = (color >> 8) & 0xFF;
+            var b = (color >> 16) & 0xFF;
+            var a = (color >> 24) & 0xFF;
+            return new Vector4(r / 255f, g / 255f, b / 255f, a / 255f);
+        }
+
+        private static uint Vec4ToUint(Vector4 color)
+        {
+            var r = (uint)(color.X * 255);
+            var g = (uint)(color.Y * 255);
+            var b = (uint)(color.Z * 255);
+            var a = (uint)(color.W * 255);
+            return r | (g << 8) | (b << 16) | (a << 24);
         }
     }
 }

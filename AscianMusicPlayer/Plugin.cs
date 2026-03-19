@@ -1,6 +1,9 @@
 ﻿using System;
+using System.IO;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using System.Drawing.Text;
+using System.Linq;
 using Dalamud.Game.Command;
 using Dalamud.Game.Gui.Dtr;
 using Dalamud.Game.Gui.FlyText;
@@ -11,6 +14,7 @@ using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using Dalamud.Interface.Windowing;
 using Dalamud.Interface.ManagedFontAtlas;
+using Dalamud.Interface.GameFonts;
 using AscianMusicPlayer.Windows;
 using AscianMusicPlayer.Audio;
 using AscianMusicPlayer.Data;
@@ -461,11 +465,171 @@ namespace AscianMusicPlayer
                 var fontSize = 30.0f * maxScale;
 
                 _lyricsFontAtlas = PluginInterface.UiBuilder.CreateFontAtlas(FontAtlasAutoRebuildMode.Async);
-                _lyricsFontHandle = _lyricsFontAtlas.NewDelegateFontHandle(e => e.OnPreBuild(tk => tk.AddDalamudDefaultFont(fontSize)));
+
+                var fontName = Settings.LyricsSystemFontName;
+                if (string.IsNullOrEmpty(fontName))
+                {
+                    fontName = "Dalamud Default";
+                }
+
+                _lyricsFontHandle = _lyricsFontAtlas.NewDelegateFontHandle(e => e.OnPreBuild(tk =>
+                {
+                    switch (fontName)
+                    {
+                        case "Dalamud Default":
+                            tk.AddDalamudDefaultFont(fontSize);
+                            break;
+                        case "Game: Axis":
+                            tk.AddGameGlyphs(new GameFontStyle(GameFontFamily.Axis, fontSize), null, null);
+                            break;
+                        case "Game: Jupiter":
+                            tk.AddGameGlyphs(new GameFontStyle(GameFontFamily.Jupiter, fontSize), null, null);
+                            break;
+                        case "Game: Jupiter Numeric":
+                            tk.AddGameGlyphs(new GameFontStyle(GameFontFamily.JupiterNumeric, fontSize), null, null);
+                            break;
+                        case "Game: Meidinger":
+                            tk.AddGameGlyphs(new GameFontStyle(GameFontFamily.Meidinger, fontSize), null, null);
+                            break;
+                        case "Game: Meidinger Mid":
+                            tk.AddGameGlyphs(new GameFontStyle(GameFontFamily.MiedingerMid, fontSize), null, null);
+                            break;
+                        case "Game: Trump Gothic":
+                            tk.AddGameGlyphs(new GameFontStyle(GameFontFamily.TrumpGothic, fontSize), null, null);
+                            break;
+                        default:
+                            var fontPath = GetSystemFontPath(fontName);
+                            if (!string.IsNullOrEmpty(fontPath) && File.Exists(fontPath))
+                            {
+                                tk.AddFontFromFile(fontPath, new SafeFontConfig { SizePx = fontSize });
+                            }
+                            else
+                            {
+                                tk.AddDalamudDefaultFont(fontSize);
+                            }
+                            break;
+                    }
+                }));
             }
             catch (Exception ex)
             {
                 Log.Error($"Failed to build lyrics font: {ex.Message}");
+            }
+        }
+
+        private static string? GetSystemFontPath(string fontName)
+        {
+            try
+            {
+                var fontsFolder = Environment.GetFolderPath(Environment.SpecialFolder.Fonts);
+                var localFontsFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Microsoft", "Windows", "Fonts");
+
+                var registryPaths = new[]
+                {
+                    @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts",
+                    @"SOFTWARE\Microsoft\Windows\CurrentVersion\Fonts"
+                };
+
+                foreach (var regPath in registryPaths)
+                {
+                    using var key = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(regPath);
+                    if (key == null) continue;
+
+                    foreach (var valueName in key.GetValueNames())
+                    {
+                        var fontDisplayName = valueName
+                            .Replace(" (TrueType)", "")
+                            .Replace(" (OpenType)", "")
+                            .Replace(" (All Res)", "")
+                            .Replace(" Bold", "")
+                            .Replace(" Italic", "")
+                            .Replace(" Regular", "")
+                            .Trim();
+
+                        if (fontDisplayName.Equals(fontName, StringComparison.OrdinalIgnoreCase) ||
+                            valueName.StartsWith(fontName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            var fileName = key.GetValue(valueName) as string;
+                            if (!string.IsNullOrEmpty(fileName))
+                            {
+                                if (!Path.IsPathRooted(fileName))
+                                {
+                                    fileName = Path.Combine(fontsFolder, fileName);
+                                }
+                                if (File.Exists(fileName))
+                                {
+                                    return fileName;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                using (var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts"))
+                {
+                    if (key != null)
+                    {
+                        foreach (var valueName in key.GetValueNames())
+                        {
+                            var fontDisplayName = valueName
+                                .Replace(" (TrueType)", "")
+                                .Replace(" (OpenType)", "")
+                                .Replace(" (All Res)", "")
+                                .Replace(" Bold", "")
+                                .Replace(" Italic", "")
+                                .Replace(" Regular", "")
+                                .Trim();
+
+                            if (fontDisplayName.Equals(fontName, StringComparison.OrdinalIgnoreCase) ||
+                                valueName.StartsWith(fontName, StringComparison.OrdinalIgnoreCase))
+                            {
+                                var fileName = key.GetValue(valueName) as string;
+                                if (!string.IsNullOrEmpty(fileName))
+                                {
+                                    if (!Path.IsPathRooted(fileName))
+                                    {
+                                        fileName = Path.Combine(localFontsFolder, fileName);
+                                    }
+                                    if (File.Exists(fileName))
+                                    {
+                                        return fileName;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                var searchFolders = new[] { fontsFolder, localFontsFolder };
+                var extensions = new[] { ".ttf", ".otf", ".ttc" };
+
+                foreach (var folder in searchFolders)
+                {
+                    if (!Directory.Exists(folder)) continue;
+
+                    foreach (var ext in extensions)
+                    {
+                        var files = Directory.GetFiles(folder, $"*{ext}", SearchOption.TopDirectoryOnly);
+                        foreach (var file in files)
+                        {
+                            var fileName = Path.GetFileNameWithoutExtension(file);
+                            if (fileName.Equals(fontName, StringComparison.OrdinalIgnoreCase) ||
+                                fileName.Equals(fontName.Replace(" ", ""), StringComparison.OrdinalIgnoreCase) ||
+                                fileName.Replace("-", " ").Equals(fontName, StringComparison.OrdinalIgnoreCase) ||
+                                fileName.Replace("_", " ").Equals(fontName, StringComparison.OrdinalIgnoreCase))
+                            {
+                                return file;
+                            }
+                        }
+                    }
+                }
+
+                return null;
+            }
+            catch (Exception ex)
+            {
+                Log.Warning($"Failed to find font path for '{fontName}': {ex.Message}");
+                return null;
             }
         }
 

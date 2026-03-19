@@ -58,27 +58,25 @@ namespace AscianMusicPlayer.Windows
         {
             _fileDialogManager.Draw();
 
-            if (ImGui.BeginTabBar("SettingsTabs"))
+            using var tabBar = ImRaii.TabBar("SettingsTabs");
+            if (!tabBar) return;
+
+            using (var audioTab = ImRaii.TabItem("Audio"))
             {
-                if (ImGui.BeginTabItem("Audio"))
-                {
+                if (audioTab)
                     DrawAudioTab();
-                    ImGui.EndTabItem();
-                }
+            }
 
-                if (ImGui.BeginTabItem("Display"))
-                {
+            using (var displayTab = ImRaii.TabItem("Display"))
+            {
+                if (displayTab)
                     DrawDisplayTab();
-                    ImGui.EndTabItem();
-                }
+            }
 
-                if (ImGui.BeginTabItem("Library"))
-                {
+            using (var libraryTab = ImRaii.TabItem("Library"))
+            {
+                if (libraryTab)
                     DrawLibraryTab();
-                    ImGui.EndTabItem();
-                }
-
-                ImGui.EndTabBar();
             }
         }
 
@@ -186,9 +184,8 @@ namespace AscianMusicPlayer.Windows
 
             if (Util.IsWine())
             {
-                ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1.0f, 0.8f, 0.0f, 1.0f));
+                using var color = ImRaii.PushColor(ImGuiCol.Text, new Vector4(1.0f, 0.8f, 0.0f, 1.0f));
                 ImGui.TextWrapped("24-bit audio formats may have trouble playing under Wine.");
-                ImGui.PopStyleColor();
             }
 
             ImGui.Spacing();

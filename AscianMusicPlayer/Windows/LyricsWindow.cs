@@ -98,7 +98,7 @@ namespace AscianMusicPlayer.Windows
             if (_currentLyricIndex >= 0 && _currentLyricIndex < lyrics.Count)
             {
                 var currentLine = lyrics[_currentLyricIndex];
-                DrawCenteredLyric(currentLine.Text, new Vector4(1.0f, 1.0f, 1.0f, 1.0f), Plugin.Settings.LyricsCurrentLineScale);
+                DrawCenteredLyric(currentLine.Text, UintToVec4(Plugin.Settings.LyricsCurrentLineColor), Plugin.Settings.LyricsCurrentLineScale);
             }
             else
             {
@@ -113,7 +113,7 @@ namespace AscianMusicPlayer.Windows
                 if (lineIndex >= 0 && lineIndex < lyrics.Count)
                 {
                     var nextLine = lyrics[lineIndex];
-                    DrawCenteredLyric(nextLine.Text, new Vector4(0.6f, 0.6f, 0.6f, 1.0f), Plugin.Settings.LyricsNextLineScale);
+                    DrawCenteredLyric(nextLine.Text, UintToVec4(Plugin.Settings.LyricsNextLineColor), Plugin.Settings.LyricsNextLineScale);
                 }
                 else
                 {
@@ -227,6 +227,15 @@ namespace AscianMusicPlayer.Windows
             ImGui.SetCursorPosY(ImGui.GetCursorPosY() + (availableHeight - ImGui.GetTextLineHeight()) / 2f);
 
             ImGui.TextColored(color, text);
+        }
+
+        private static Vector4 UintToVec4(uint color)
+        {
+            var r = (color >> 0) & 0xFF;
+            var g = (color >> 8) & 0xFF;
+            var b = (color >> 16) & 0xFF;
+            var a = (color >> 24) & 0xFF;
+            return new Vector4(r / 255f, g / 255f, b / 255f, a / 255f);
         }
     }
 }
