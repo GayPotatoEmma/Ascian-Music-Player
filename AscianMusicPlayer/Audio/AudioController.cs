@@ -2,6 +2,7 @@
 using System.IO;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using NAudio.Wave;
 using Dalamud.Game.Config;
 
@@ -59,8 +60,45 @@ namespace AscianMusicPlayer.Audio
             }
         }
 
-        public AudioController()
+        public static List<LyricLine> ParseSyncedLyricsStatic(string lyricsText)
         {
+            return ParseSyncedLyrics(lyricsText);
+        }
+
+        private static List<LyricLine> ParseSyncedLyrics(string lyricsText)
+        {
+            var lines = new List<LyricLine>();
+            if (string.IsNullOrWhiteSpace(lyricsText)) return lines;
+
+            var lrcPattern = @"\[(\d{1,2}):(\d{2})\.(\d{2,3})\](.*)";
+            var matches = Regex.Matches(lyricsText, lrcPattern);
+
+            foreach (Match match in matches)
+            {
+                if (match.Success)
+                {
+                    int minutes = int.Parse(match.Groups[1].Value);
+                    int seconds = int.Parse(match.Groups[2].Value);
+                    int centiseconds = int.Parse(match.Groups[3].Value);
+
+                    int milliseconds = match.Groups[3].Value.Length == 3 
+                        ? centiseconds 
+                        : centiseconds * 10;
+
+                    string text = match.Groups[4].Value.Trim();
+
+                    if (!string.IsNullOrWhiteSpace(text))
+                    {
+                        lines.Add(new LyricLine
+                        {
+                            Time = new TimeSpan(0, 0, minutes, seconds, milliseconds),
+                            Text = text
+                        });
+                    }
+                }
+            }
+
+            return lines.OrderBy(l => l.Time).ToList();
         }
 
         public static List<Song> LoadSongs(string folderPath)
@@ -86,15 +124,36 @@ namespace AscianMusicPlayer.Audio
                 try
                 {
                     var tfile = TagLib.File.Create(file);
-                    songs.Add(new Song
+                    var song = new Song
                     {
                         FilePath = file,
                         Title = tfile.Tag.Title ?? Path.GetFileNameWithoutExtension(file),
                         Artist = tfile.Tag.FirstPerformer ?? "Unknown",
                         Album = tfile.Tag.Album ?? "Unknown",
                         AlbumArtist = tfile.Tag.FirstAlbumArtist ?? tfile.Tag.FirstPerformer ?? "Unknown",
+                        TrackNumber = tfile.Tag.Track,
                         Duration = tfile.Properties.Duration
-                    });
+                    };
+
+                    var lrcPath = Path.ChangeExtension(file, ".lrc");
+                    if (File.Exists(lrcPath))
+                    {
+                        try
+                        {
+                            var lrcContent = File.ReadAllText(lrcPath);
+                            song.SyncedLyrics = ParseSyncedLyrics(lrcContent);
+                            if (song.SyncedLyrics.Count > 0)
+                            {
+                                Plugin.Log.Information($"Loaded {song.SyncedLyrics.Count} synced lyric lines from .lrc file for: {song.Title}");
+                            }
+                        }
+                        catch (Exception lrcEx)
+                        {
+                            Plugin.Log.Warning($"Failed to load .lrc file for {song.Title}: {lrcEx.Message}");
+                        }
+                    }
+
+                    songs.Add(song);
                 }
                 catch (Exception ex)
                 {

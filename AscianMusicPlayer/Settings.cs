@@ -21,11 +21,29 @@ namespace AscianMusicPlayer
         public bool ShowArtistColumn = true;
         public bool ShowAlbumColumn = true;
         public bool ShowLengthColumn = true;
+        public bool ShowTrackNumberColumn = false;
 
         public bool ShowInDtr = false;
         public bool PrintSongToChat = false;
+        public int LyricsDisplayMode = 0;
+        public bool FetchLyricsOnline = false;
+        public uint FlyTextLyricColor = 0xFF0000FF;
 
         public float CrossfadeDuration = 0f;
+
+        public int LyricsWindowWidth = 500;
+        public int LyricsWindowHeight = 150;
+        public int LyricsNextLineCount = 2;
+        public float LyricsCurrentLineScale = 1.3f;
+        public float LyricsNextLineScale = 0.9f;
+        public float LyricsHorizontalAlignment = 0.5f;
+        public float LyricsVerticalAlignment = 0.5f;
+        public float LyricsWindowBgAlpha = 0.9f;
+        public bool LyricsWindowClickthrough = false;
+
+        public string LyricsSystemFontName = string.Empty;
+        public uint LyricsCurrentLineColor = 0xFFFFFFFF;
+        public uint LyricsNextLineColor = 0xFF999999;
 
         public List<Playlist> Playlists { get; set; } = new();
 

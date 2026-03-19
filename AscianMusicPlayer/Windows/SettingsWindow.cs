@@ -4,6 +4,7 @@ using Dalamud.Interface.Windowing;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Utility;
 using Dalamud.Interface.ImGuiFileDialog;
+using Dalamud.Interface.Utility.Raii;
 
 namespace AscianMusicPlayer.Windows
 {
@@ -35,13 +36,12 @@ namespace AscianMusicPlayer.Windows
         public SettingsWindow(Plugin plugin) : base("Settings###AscianMusicPlayerSettings")
         {
             _plugin = plugin;
-            var height = Util.IsWine() ? 455 : 420;
-            this.Size = new Vector2(275, height);
+            this.Size = new Vector2(275, 300);
             this.SizeCondition = ImGuiCond.Always;
             this.Flags = ImGuiWindowFlags.NoResize;
 
             _mediaFolderInput = Plugin.Settings.MediaFolder;
-            _selectedChannel = System.Array.IndexOf(_channelIds, Plugin.Settings.MusicChannel);
+            _selectedChannel = Array.IndexOf(_channelIds, Plugin.Settings.MusicChannel);
             if (_selectedChannel < 0) _selectedChannel = 4;
 
             _fileDialogManager = new FileDialogManager();
@@ -50,7 +50,7 @@ namespace AscianMusicPlayer.Windows
         public override void OnOpen()
         {
             _mediaFolderInput = Plugin.Settings.MediaFolder;
-            _selectedChannel = System.Array.IndexOf(_channelIds, Plugin.Settings.MusicChannel);
+            _selectedChannel = Array.IndexOf(_channelIds, Plugin.Settings.MusicChannel);
             if (_selectedChannel < 0) _selectedChannel = 4;
         }
 
@@ -58,7 +58,31 @@ namespace AscianMusicPlayer.Windows
         {
             _fileDialogManager.Draw();
 
-            ImGui.Text("Volume Settings");
+            using var tabBar = ImRaii.TabBar("SettingsTabs");
+            if (!tabBar) return;
+
+            using (var audioTab = ImRaii.TabItem("Audio"))
+            {
+                if (audioTab)
+                    DrawAudioTab();
+            }
+
+            using (var displayTab = ImRaii.TabItem("Display"))
+            {
+                if (displayTab)
+                    DrawDisplayTab();
+            }
+
+            using (var libraryTab = ImRaii.TabItem("Library"))
+            {
+                if (libraryTab)
+                    DrawLibraryTab();
+            }
+        }
+
+        private void DrawAudioTab()
+        {
+            ImGui.TextColored(new Vector4(0.2f, 0.8f, 1.0f, 1.0f), "Volume Settings");
             ImGui.Separator();
 
             if (ImGui.Checkbox("Bind to Game Volume", ref Plugin.Settings.BindToGameVolume))
@@ -79,7 +103,7 @@ namespace AscianMusicPlayer.Windows
             }
             else
             {
-                ImGui.Text("Music Channel:");
+                ImGui.Text("Music Channel");
                 ImGui.SetNextItemWidth(180 * ImGui.GetIO().FontGlobalScale);
                 if (ImGui.Combo("##MusicChannel", ref _selectedChannel, _channelNames, _channelNames.Length))
                 {
@@ -93,7 +117,7 @@ namespace AscianMusicPlayer.Windows
             ImGui.Separator();
             ImGui.Spacing();
 
-            ImGui.Text("Music Playback Settings");
+            ImGui.TextColored(new Vector4(0.2f, 0.8f, 1.0f, 1.0f), "Playback Settings");
             ImGui.Separator();
 
             if (ImGui.Checkbox("Mute BGM when playing music", ref Plugin.Settings.MuteBgmWhenPlaying))
@@ -103,6 +127,25 @@ namespace AscianMusicPlayer.Windows
             }
 
             ImGui.Spacing();
+
+            ImGui.Text("Crossfade Duration");
+            ImGui.SetNextItemWidth(180 * ImGui.GetIO().FontGlobalScale);
+            if (ImGui.SliderFloat("##Crossfade", ref Plugin.Settings.CrossfadeDuration, 0f, 10f, "%.0f seconds"))
+            {
+                Plugin.Settings.CrossfadeDuration = MathF.Round(Plugin.Settings.CrossfadeDuration);
+                Plugin.Settings.CrossfadeDuration = Math.Clamp(Plugin.Settings.CrossfadeDuration, 0f, 10f);
+                _plugin.SaveSettings();
+            }
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.SetTooltip("Fade between songs (0 = disabled)");
+            }
+        }
+
+        private void DrawDisplayTab()
+        {
+            ImGui.TextColored(new Vector4(0.2f, 0.8f, 1.0f, 1.0f), "Display Settings");
+            ImGui.Separator();
 
             if (ImGui.Checkbox("Show current song in Server Info Bar", ref Plugin.Settings.ShowInDtr))
             {
@@ -116,27 +159,14 @@ namespace AscianMusicPlayer.Windows
             {
                 _plugin.SaveSettings();
             }
+        }
 
-            ImGui.Spacing();
-
-            ImGui.Text("Crossfade Duration:");
-            ImGui.SetNextItemWidth(180 * ImGui.GetIO().FontGlobalScale);
-            if (ImGui.SliderFloat("##Crossfade", ref Plugin.Settings.CrossfadeDuration, 0f, 10f, "%.0f seconds"))
-            {
-                Plugin.Settings.CrossfadeDuration = MathF.Round(Plugin.Settings.CrossfadeDuration);
-                Plugin.Settings.CrossfadeDuration = Math.Clamp(Plugin.Settings.CrossfadeDuration, 0f, 10f);
-                _plugin.SaveSettings();
-            }
-            if (ImGui.IsItemHovered())
-            {
-                ImGui.SetTooltip("Fade between songs (0 = disabled)");
-            }
-
-            ImGui.Spacing();
+        private void DrawLibraryTab()
+        {
+            ImGui.TextColored(new Vector4(0.2f, 0.8f, 1.0f, 1.0f), "Media Library");
             ImGui.Separator();
-            ImGui.Spacing();
 
-            ImGui.Text("Media Folder:");
+            ImGui.Text("Media Folder");
             ImGui.SetNextItemWidth(180 * ImGui.GetIO().FontGlobalScale);
             ImGui.InputText("##MediaFolder", ref _mediaFolderInput, 260);
 
@@ -154,9 +184,8 @@ namespace AscianMusicPlayer.Windows
 
             if (Util.IsWine())
             {
-                ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1.0f, 0.8f, 0.0f, 1.0f));
+                using var color = ImRaii.PushColor(ImGuiCol.Text, new Vector4(1.0f, 0.8f, 0.0f, 1.0f));
                 ImGui.TextWrapped("24-bit audio formats may have trouble playing under Wine.");
-                ImGui.PopStyleColor();
             }
 
             ImGui.Spacing();

@@ -53,15 +53,17 @@ namespace AscianMusicPlayer.Windows
                         _scrollOffset = 0f;
                     }
 
-                    ImGui.BeginChild("##ScrollingText", new Vector2(windowWidth, ImGui.GetTextLineHeight()), false, ImGuiWindowFlags.NoScrollbar);
+                    using (var child = ImRaii.Child("##ScrollingText", new Vector2(windowWidth, ImGui.GetTextLineHeight()), false, ImGuiWindowFlags.NoScrollbar))
+                    {
+                        if (child)
+                        {
+                            ImGui.SetCursorPosX(-_scrollOffset);
+                            ImGui.TextColored(new Vector4(0.2f, 0.8f, 1.0f, 1.0f), songText);
 
-                    ImGui.SetCursorPosX(-_scrollOffset);
-                    ImGui.TextColored(new Vector4(0, 1, 0, 1), songText);
-
-                    ImGui.SameLine(0, 50f);
-                    ImGui.TextColored(new Vector4(0, 1, 0, 1), songText);
-
-                    ImGui.EndChild();
+                            ImGui.SameLine(0, 50f);
+                            ImGui.TextColored(new Vector4(0.2f, 0.8f, 1.0f, 1.0f), songText);
+                        }
+                    }
                 }
                 else
                 {
@@ -70,7 +72,7 @@ namespace AscianMusicPlayer.Windows
                     {
                         ImGui.SetCursorPosX(ImGui.GetCursorPosX() + offset);
                     }
-                    ImGui.TextColored(new Vector4(0, 1, 0, 1), songText);
+                    ImGui.TextColored(new Vector4(0.2f, 0.8f, 1.0f, 1.0f), songText);
                 }
             }
             else
@@ -89,102 +91,101 @@ namespace AscianMusicPlayer.Windows
 
             ImGui.Spacing();
 
-            ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(5, 5));
-            ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(3, 0));
+            using (ImRaii.PushStyle(ImGuiStyleVar.FramePadding, new Vector2(5, 5)))
+            using (ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing, new Vector2(3, 0)))
+            {
+                var scale = ImGui.GetIO().FontGlobalScale;
+                float buttonWidth = 40f;
+                float spacing = ImGui.GetStyle().ItemSpacing.X;
+                float totalWidth = (5 * buttonWidth * scale) + (4 * spacing);
+                float windowWidth2 = ImGui.GetContentRegionAvail().X;
+                float offset2 = (windowWidth2 - totalWidth) / 2f;
 
-            var scale = ImGui.GetIO().FontGlobalScale;
-            float buttonWidth = 40f;
-            float spacing = ImGui.GetStyle().ItemSpacing.X;
-            float totalWidth = (5 * buttonWidth * scale) + (4 * spacing);
-            float windowWidth2 = ImGui.GetContentRegionAvail().X;
-            float offset2 = (windowWidth2 - totalWidth) / 2f;
-
-            if (offset2 > 0)
-            {
-                ImGui.SetCursorPosX(ImGui.GetCursorPosX() + offset2);
-            }
-
-            bool isShuffle = _plugin.MainWindow.IsShuffle;
-            Vector4? shuffleColor = isShuffle ? new Vector4(0, 1, 0.5f, 1) : null;
-            if (ImGuiComponents.IconButton("##MiniShuffle", FontAwesomeIcon.Random, shuffleColor, activeColor: null, hoveredColor: null, size: new Vector2(40, 0)))
-            {
-                _plugin.MainWindow.ToggleShufflePublic();
-            }
-            if (ImGui.IsItemHovered())
-            {
-                ImGui.SetTooltip(isShuffle ? "Shuffle: ON" : "Shuffle: OFF");
-            }
-
-            ImGui.SameLine();
-            if (ImGuiComponents.IconButton("##MiniPrevious", FontAwesomeIcon.StepBackward, new Vector2(40, 0)))
-            {
-                _plugin.MainWindow.PlayPreviousPublic();
-            }
-            if (ImGui.IsItemHovered())
-            {
-                ImGui.SetTooltip("Previous");
-            }
-
-            ImGui.SameLine();
-            if (ImGuiComponents.IconButton("##MiniPlayPause", _plugin.AudioController.IsPlaying ? FontAwesomeIcon.Pause : FontAwesomeIcon.Play, new Vector2(40, 0)))
-            {
-                if (_plugin.AudioController.IsPlaying)
+                if (offset2 > 0)
                 {
-                    _plugin.AudioController.Pause();
-                    _plugin.UpdateDtr();
+                    ImGui.SetCursorPosX(ImGui.GetCursorPosX() + offset2);
                 }
-                else if (_plugin.AudioController.IsPaused)
-                {
-                    _plugin.AudioController.Resume();
-                    _plugin.UpdateDtr();
-                }
-                else
-                {
-                    _plugin.MainWindow.PlaySelectedSong();
-                }
-            }
-            if (ImGui.IsItemHovered())
-            {
-                ImGui.SetTooltip(_plugin.AudioController.IsPlaying ? "Pause" : "Play");
-            }
 
-            ImGui.SameLine();
-            if (ImGuiComponents.IconButton("##MiniNext", FontAwesomeIcon.StepForward, new Vector2(40, 0)))
-            {
-                _plugin.MainWindow.PlayNextPublic();
-            }
-            if (ImGui.IsItemHovered())
-            {
-                ImGui.SetTooltip("Next");
-            }
-
-            ImGui.SameLine();
-            var repeatMode = _plugin.MainWindow.GetRepeatMode();
-            Vector4? repeatColor = repeatMode != 0 ? new Vector4(0, 1, 0.5f, 1) : null;
-            var repeatIcon = repeatMode switch
-            {
-                0 => FontAwesomeIcon.Redo,
-                1 => FontAwesomeIcon.Redo,
-                2 => FontAwesomeIcon.Music,
-                _ => FontAwesomeIcon.Redo
-            };
-            if (ImGuiComponents.IconButton("##MiniRepeat", repeatIcon, repeatColor, activeColor: null, hoveredColor: null, size: new Vector2(40, 0)))
-            {
-                _plugin.MainWindow.ToggleRepeatPublic();
-            }
-            if (ImGui.IsItemHovered())
-            {
-                string repeatTooltip = repeatMode switch
+                bool isShuffle = _plugin.MainWindow.IsShuffle;
+                Vector4? shuffleColor = isShuffle ? new Vector4(0.2f, 0.8f, 1.0f, 1.0f) : null;
+                if (ImGuiComponents.IconButton("##MiniShuffle", FontAwesomeIcon.Random, shuffleColor, activeColor: null, hoveredColor: null, size: new Vector2(40, 0)))
                 {
-                    0 => "Repeat: OFF",
-                    1 => "Repeat: ALL",
-                    2 => "Repeat: ONE",
-                    _ => "Repeat: OFF"
+                    _plugin.MainWindow.ToggleShufflePublic();
+                }
+                if (ImGui.IsItemHovered())
+                {
+                    ImGui.SetTooltip(isShuffle ? "Shuffle: ON" : "Shuffle: OFF");
+                }
+
+                ImGui.SameLine();
+                if (ImGuiComponents.IconButton("##MiniPrevious", FontAwesomeIcon.StepBackward, new Vector2(40, 0)))
+                {
+                    _plugin.MainWindow.PlayPreviousPublic();
+                }
+                if (ImGui.IsItemHovered())
+                {
+                    ImGui.SetTooltip("Previous");
+                }
+
+                ImGui.SameLine();
+                if (ImGuiComponents.IconButton("##MiniPlayPause", _plugin.AudioController.IsPlaying ? FontAwesomeIcon.Pause : FontAwesomeIcon.Play, new Vector2(40, 0)))
+                {
+                    if (_plugin.AudioController.IsPlaying)
+                    {
+                        _plugin.AudioController.Pause();
+                        _plugin.UpdateDtr();
+                    }
+                    else if (_plugin.AudioController.IsPaused)
+                    {
+                        _plugin.AudioController.Resume();
+                        _plugin.UpdateDtr();
+                    }
+                    else
+                    {
+                        _plugin.MainWindow.PlaySelectedSong();
+                    }
+                }
+                if (ImGui.IsItemHovered())
+                {
+                    ImGui.SetTooltip(_plugin.AudioController.IsPlaying ? "Pause" : "Play");
+                }
+
+                ImGui.SameLine();
+                if (ImGuiComponents.IconButton("##MiniNext", FontAwesomeIcon.StepForward, new Vector2(40, 0)))
+                {
+                    _plugin.MainWindow.PlayNextPublic();
+                }
+                if (ImGui.IsItemHovered())
+                {
+                    ImGui.SetTooltip("Next");
+                }
+
+                ImGui.SameLine();
+                var repeatMode = _plugin.MainWindow.GetRepeatMode();
+                Vector4? repeatColor = repeatMode != 0 ? new Vector4(0.2f, 0.8f, 1.0f, 1.0f) : null;
+                var repeatIcon = repeatMode switch
+                {
+                    0 => FontAwesomeIcon.Redo,
+                    1 => FontAwesomeIcon.Redo,
+                    2 => FontAwesomeIcon.Music,
+                    _ => FontAwesomeIcon.Redo
                 };
-                ImGui.SetTooltip(repeatTooltip);
+                if (ImGuiComponents.IconButton("##MiniRepeat", repeatIcon, repeatColor, activeColor: null, hoveredColor: null, size: new Vector2(40, 0)))
+                {
+                    _plugin.MainWindow.ToggleRepeatPublic();
+                }
+                if (ImGui.IsItemHovered())
+                {
+                    string repeatTooltip = repeatMode switch
+                    {
+                        0 => "Repeat: OFF",
+                        1 => "Repeat: ALL",
+                        2 => "Repeat: ONE",
+                        _ => "Repeat: OFF"
+                    };
+                    ImGui.SetTooltip(repeatTooltip);
+                }
             }
-
-            ImGui.PopStyleVar(2);
 
             ImGui.Spacing();
 
