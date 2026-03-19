@@ -483,6 +483,11 @@ namespace AscianMusicPlayer.Windows
             ImGui.Text("Visibility:");
             ImGui.Separator();
 
+            if (ImGui.Checkbox("Track #", ref Plugin.Settings.ShowTrackNumberColumn))
+            {
+                Plugin.Settings.Save();
+            }
+
             if (ImGui.Checkbox("Artist", ref Plugin.Settings.ShowArtistColumn))
             {
                 Plugin.Settings.Save();
@@ -747,6 +752,7 @@ namespace AscianMusicPlayer.Windows
             }
 
             int columnCount = 1;
+            if (Plugin.Settings.ShowTrackNumberColumn) columnCount++;
             if (Plugin.Settings.ShowArtistColumn) columnCount++;
             if (Plugin.Settings.ShowAlbumColumn) columnCount++;
             if (Plugin.Settings.ShowLengthColumn) columnCount++;
@@ -755,6 +761,10 @@ namespace AscianMusicPlayer.Windows
             {
                 if (table)
                 {
+                if (Plugin.Settings.ShowTrackNumberColumn)
+                {
+                    ImGui.TableSetupColumn("#", ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.PreferSortAscending, 35);
+                }
                 ImGui.TableSetupColumn("Title", ImGuiTableColumnFlags.WidthStretch | ImGuiTableColumnFlags.NoHide | ImGuiTableColumnFlags.DefaultSort | ImGuiTableColumnFlags.PreferSortAscending);
 
                 if (Plugin.Settings.ShowArtistColumn)
@@ -775,7 +785,15 @@ namespace AscianMusicPlayer.Windows
 
                 ImGui.TableNextRow(ImGuiTableRowFlags.Headers);
 
-                ImGui.TableSetColumnIndex(0);
+                int titleSearchCol = 0;
+                if (Plugin.Settings.ShowTrackNumberColumn)
+                {
+                    ImGui.TableSetColumnIndex(0);
+                    ImGui.Text("");
+                    titleSearchCol = 1;
+                }
+
+                ImGui.TableSetColumnIndex(titleSearchCol);
                 ImGui.SetNextItemWidth(-1);
                 using (ImRaii.PushStyle(ImGuiStyleVar.FramePadding, new Vector2(0, 0)))
                 {
@@ -785,7 +803,7 @@ namespace AscianMusicPlayer.Windows
                     }
                 }
 
-                int searchCol = 1;
+                int searchCol = titleSearchCol + 1;
                 if (Plugin.Settings.ShowArtistColumn)
                 {
                     ImGui.TableSetColumnIndex(searchCol);
@@ -831,47 +849,58 @@ namespace AscianMusicPlayer.Windows
 
                             int actualColumnIndex = spec.ColumnIndex;
 
-                            if (actualColumnIndex == 0)
+                            int visibleCol = 0;
+                            if (Plugin.Settings.ShowTrackNumberColumn)
                             {
-                                _songs = ascending 
+                                if (actualColumnIndex == visibleCol)
+                                {
+                                    _displaySongs = ascending
+                                        ? _displaySongs.OrderBy(s => s.AlbumArtist).ThenBy(s => s.Album).ThenBy(s => s.TrackNumber).ThenBy(s => s.Title).ToList()
+                                        : _displaySongs.OrderByDescending(s => s.AlbumArtist).ThenByDescending(s => s.Album).ThenByDescending(s => s.TrackNumber).ThenByDescending(s => s.Title).ToList();
+                                    ApplySearchFilter();
+                                }
+                                visibleCol++;
+                            }
+
+                            if (actualColumnIndex == visibleCol)
+                            {
+                                _songs = ascending
                                     ? _songs.OrderBy(s => s.Title).ToList()
                                     : _songs.OrderByDescending(s => s.Title).ToList();
                                 RefreshDisplaySongs();
                             }
-                            else
+                            visibleCol++;
+
+                            if (Plugin.Settings.ShowArtistColumn)
                             {
-                                int visibleCol = 1;
-                                if (Plugin.Settings.ShowArtistColumn)
+                                if (actualColumnIndex == visibleCol)
                                 {
-                                    if (actualColumnIndex == visibleCol)
-                                    {
-                                        _displaySongs = ascending
-                                            ? _displaySongs.OrderBy(s => s.Artist).ThenBy(s => s.Title).ToList()
-                                            : _displaySongs.OrderByDescending(s => s.Artist).ThenByDescending(s => s.Title).ToList();
-                                        ApplySearchFilter();
-                                    }
-                                    visibleCol++;
+                                    _displaySongs = ascending
+                                        ? _displaySongs.OrderBy(s => s.Artist).ThenBy(s => s.Title).ToList()
+                                        : _displaySongs.OrderByDescending(s => s.Artist).ThenByDescending(s => s.Title).ToList();
+                                    ApplySearchFilter();
                                 }
-                                if (Plugin.Settings.ShowAlbumColumn)
+                                visibleCol++;
+                            }
+                            if (Plugin.Settings.ShowAlbumColumn)
+                            {
+                                if (actualColumnIndex == visibleCol)
                                 {
-                                    if (actualColumnIndex == visibleCol)
-                                    {
-                                        _displaySongs = ascending
-                                            ? _displaySongs.OrderBy(s => s.Album).ThenBy(s => s.Title).ToList()
-                                            : _displaySongs.OrderByDescending(s => s.Album).ThenByDescending(s => s.Title).ToList();
-                                        ApplySearchFilter();
-                                    }
-                                    visibleCol++;
+                                    _displaySongs = ascending
+                                        ? _displaySongs.OrderBy(s => s.Album).ThenBy(s => s.TrackNumber).ThenBy(s => s.Title).ToList()
+                                        : _displaySongs.OrderByDescending(s => s.Album).ThenByDescending(s => s.TrackNumber).ThenByDescending(s => s.Title).ToList();
+                                    ApplySearchFilter();
                                 }
-                                if (Plugin.Settings.ShowLengthColumn)
+                                visibleCol++;
+                            }
+                            if (Plugin.Settings.ShowLengthColumn)
+                            {
+                                if (actualColumnIndex == visibleCol)
                                 {
-                                    if (actualColumnIndex == visibleCol)
-                                    {
-                                        _displaySongs = ascending
-                                            ? _displaySongs.OrderBy(s => s.Duration).ThenBy(s => s.Title).ToList()
-                                            : _displaySongs.OrderByDescending(s => s.Duration).ThenByDescending(s => s.Title).ToList();
-                                        ApplySearchFilter();
-                                    }
+                                    _displaySongs = ascending
+                                        ? _displaySongs.OrderBy(s => s.Duration).ThenBy(s => s.Title).ToList()
+                                        : _displaySongs.OrderByDescending(s => s.Duration).ThenByDescending(s => s.Title).ToList();
+                                    ApplySearchFilter();
                                 }
                             }
 
@@ -886,6 +915,12 @@ namespace AscianMusicPlayer.Windows
                 {
                     var song = _filteredSongs[i];
                     ImGui.TableNextRow();
+
+                    if (Plugin.Settings.ShowTrackNumberColumn)
+                    {
+                        ImGui.TableNextColumn();
+                        ImGui.Text(song.TrackNumber > 0 ? song.TrackNumber.ToString() : "");
+                    }
 
                     ImGui.TableNextColumn();
                     bool isSelected = _selectedSongIndex >= 0 && _selectedSongIndex < _displaySongs.Count && _displaySongs[_selectedSongIndex] == song;

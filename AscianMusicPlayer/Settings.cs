@@ -21,6 +21,7 @@ namespace AscianMusicPlayer
         public bool ShowArtistColumn = true;
         public bool ShowAlbumColumn = true;
         public bool ShowLengthColumn = true;
+        public bool ShowTrackNumberColumn = false;
 
         public bool ShowInDtr = false;
         public bool PrintSongToChat = false;

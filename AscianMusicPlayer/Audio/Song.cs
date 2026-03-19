@@ -16,6 +16,7 @@ namespace AscianMusicPlayer.Audio
         public string Artist { get; set; } = "Unknown Artist";
         public string Album { get; set; } = "Unknown Album";
         public string AlbumArtist { get; set; } = "Unknown Artist";
+        public uint TrackNumber { get; set; } = 0;
         public TimeSpan Duration { get; set; }
         public List<LyricLine> SyncedLyrics { get; set; } = new();
         public int LyricsOffsetMs { get; set; } = 0;

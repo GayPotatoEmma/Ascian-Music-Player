@@ -131,6 +131,7 @@ namespace AscianMusicPlayer.Audio
                         Artist = tfile.Tag.FirstPerformer ?? "Unknown",
                         Album = tfile.Tag.Album ?? "Unknown",
                         AlbumArtist = tfile.Tag.FirstAlbumArtist ?? tfile.Tag.FirstPerformer ?? "Unknown",
+                        TrackNumber = tfile.Tag.Track,
                         Duration = tfile.Properties.Duration
                     };
 
