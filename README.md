@@ -13,14 +13,14 @@
 - A simple mini player for whenever you don't need to see the entire list
 - Option to automatically mute ingame music
 - Choose which channel the music comes through so you can use the ingame volume sliders
+- Show synced lyrics
+  - Lyrics are loaded through .lrc files placed in the same folder and having the same name as the audio files. You can also optionally enable support for fetching lyrics automatically from [LRCLIB](https://lrclib.net/)
+  - Lyrics can be displayed either in chat (as echo), in flytext aswell as in their own dedicated lyrics overlay
 > [!WARNING]
 > 24-bit audio files may have trouble playing if you run the game through Wine.
 
 ## How to use
+- Simplu install the plugin from the Dalamud plugin installer
 - Open the main plugin window
-- Go to settings and set your desired media folder
-
-## Screenshots
-<img width="523" height="645" alt="image" src="https://i.imgur.com/Efp0789.png" />
-<img width="401" height="351" alt="image" src="https://i.imgur.com/HA2ltIm.png" /> 
-<img width="402" height="124" alt="image" src="https://i.imgur.com/pD4DKZR.png" />
+- Follow the setup wizard to get you set up with your media folder
+- Blast some tunes!
