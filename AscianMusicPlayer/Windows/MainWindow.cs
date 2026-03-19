@@ -128,6 +128,12 @@ namespace AscianMusicPlayer.Windows
         {
             _songs = AudioController.LoadSongs(Plugin.Settings.MediaFolder);
             _mediaFolder = Plugin.Settings.MediaFolder;
+
+            foreach (var song in _songs)
+            {
+                song.LyricsOffsetMs = _plugin.Database.GetLyricsOffset(song.FilePath);
+            }
+
             RefreshDisplaySongs();
             _sortDirty = true;
         }
@@ -434,7 +440,7 @@ namespace AscianMusicPlayer.Windows
                 foreach (var playlist in playlists)
                 {
                     bool isActive = _activePlaylistId.HasValue && _activePlaylistId.Value == playlist.Id;
-                    if (ImGui.MenuItem($"{playlist.Name} ({playlist.SongPaths.Count} songs)", "", isActive))
+                    if (ImGui.MenuItem($"{playlist.Name} ({playlist.SongCount} songs)", "", isActive))
                     {
                         SetActivePlaylist(playlist.Id);
                     }
@@ -493,7 +499,7 @@ namespace AscianMusicPlayer.Windows
             }
         }
 
-        private void DrawAddToPlaylistMenu(Song song, List<Playlist> availablePlaylists)
+        private void DrawAddToPlaylistMenu(Song song, List<PlaylistInfo> availablePlaylists)
         {
             using var menu = ImRaii.Menu("Add to Playlist");
             if (!menu) return;
@@ -506,11 +512,10 @@ namespace AscianMusicPlayer.Windows
 
             foreach (var playlist in availablePlaylists)
             {
-                bool alreadyInPlaylist = playlist.SongPaths.Contains(song.FilePath);
+                bool alreadyInPlaylist = _plugin.PlaylistManager.PlaylistContainsSong(playlist.Id, song.FilePath);
                 if (ImGui.MenuItem(playlist.Name, string.Empty, false, !alreadyInPlaylist))
                 {
                     _plugin.PlaylistManager.AddSongToPlaylist(playlist.Id, song.FilePath);
-                    _plugin.SaveSettings();
                 }
                 if (alreadyInPlaylist && ImGui.IsItemHovered())
                 {
@@ -519,7 +524,7 @@ namespace AscianMusicPlayer.Windows
             }
         }
 
-        private void DrawAddAlbumToPlaylistMenu(Song song, List<Playlist> availablePlaylists)
+        private void DrawAddAlbumToPlaylistMenu(Song song, List<PlaylistInfo> availablePlaylists)
         {
             using var menu = ImRaii.Menu("Add Album to Playlist");
             if (!menu) return;
@@ -536,19 +541,15 @@ namespace AscianMusicPlayer.Windows
 
             foreach (var playlist in availablePlaylists)
             {
-                int songsAlreadyInPlaylist = albumSongs.Count(s => playlist.SongPaths.Contains(s.FilePath));
+                int songsAlreadyInPlaylist = albumSongs.Count(s => _plugin.PlaylistManager.PlaylistContainsSong(playlist.Id, s.FilePath));
                 bool allInPlaylist = songsAlreadyInPlaylist == albumSongs.Count;
 
                 if (ImGui.MenuItem(playlist.Name, string.Empty, false, !allInPlaylist))
                 {
                     foreach (var albumSong in albumSongs)
                     {
-                        if (!playlist.SongPaths.Contains(albumSong.FilePath))
-                        {
-                            _plugin.PlaylistManager.AddSongToPlaylist(playlist.Id, albumSong.FilePath);
-                        }
+                        _plugin.PlaylistManager.AddSongToPlaylist(playlist.Id, albumSong.FilePath);
                     }
-                    _plugin.SaveSettings();
                 }
 
                 if (ImGui.IsItemHovered())
@@ -577,7 +578,6 @@ namespace AscianMusicPlayer.Windows
                 if (ImGui.MenuItem("Remove from Playlist"))
                 {
                     _plugin.PlaylistManager.RemoveSongFromPlaylist(_activePlaylistId.Value, song.FilePath);
-                    _plugin.SaveSettings();
                     RefreshDisplaySongs();
                 }
             }

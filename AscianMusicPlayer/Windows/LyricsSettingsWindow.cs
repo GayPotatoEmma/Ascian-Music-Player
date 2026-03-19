@@ -13,7 +13,7 @@ namespace AscianMusicPlayer.Windows
         public LyricsSettingsWindow(Plugin plugin) : base("Lyrics Settings###AscianMusicPlayerLyricsSettings")
         {
             _plugin = plugin;
-            Size = new Vector2(275, 420);
+            Size = new Vector2(275, 350);
             SizeCondition = ImGuiCond.Always;
             Flags = ImGuiWindowFlags.NoResize;
         }
@@ -33,6 +33,12 @@ namespace AscianMusicPlayer.Windows
             {
                 if (textTab)
                     DrawTextTab();
+            }
+
+            using (var syncTab = ImRaii.TabItem("Sync"))
+            {
+                if (syncTab)
+                    DrawSyncTab();
             }
         }
 
@@ -151,6 +157,55 @@ namespace AscianMusicPlayer.Windows
                 _plugin.SaveSettings();
             }
             DrawTooltip("0.0 = Top, 0.5 = Center, 1.0 = Bottom");
+        }
+
+        private void DrawSyncTab()
+        {
+            var currentSong = _plugin.MainWindow.GetCurrentSong();
+
+            if (currentSong == null)
+            {
+                ImGui.TextDisabled("No song playing");
+                ImGui.TextDisabled("Play a song to adjust its lyrics offset");
+                return;
+            }
+
+            DrawSectionHeader("Current Song");
+
+            ImGui.TextWrapped(currentSong.Title);
+            ImGui.TextDisabled(currentSong.Artist);
+
+            ImGui.Spacing();
+            ImGui.Spacing();
+
+            DrawSectionHeader("Lyrics Offset");
+
+            using (ImRaii.ItemWidth(150))
+            {
+                int offsetMs = currentSong.LyricsOffsetMs;
+                if (ImGui.InputInt("##LyricsOffset", ref offsetMs, 100, 500))
+                {
+                    currentSong.LyricsOffsetMs = offsetMs;
+                    _plugin.Database.SetLyricsOffset(currentSong.FilePath, offsetMs);
+                }
+            }
+            ImGui.SameLine();
+            ImGui.Text("ms");
+            DrawTooltip("Positive = lyrics appear earlier\nNegative = lyrics appear later");
+
+            ImGui.Spacing();
+
+            if (ImGui.Button("Reset to 0"))
+            {
+                currentSong.LyricsOffsetMs = 0;
+                _plugin.Database.SetLyricsOffset(currentSong.FilePath, 0);
+            }
+
+            ImGui.Spacing();
+            ImGui.Spacing();
+
+            ImGui.TextDisabled("Tip: Use +/- 100ms increments");
+            ImGui.TextDisabled("to fine-tune the sync timing");
         }
 
         private static void DrawSectionHeader(string title)

@@ -18,6 +18,7 @@ namespace AscianMusicPlayer.Audio
         public string AlbumArtist { get; set; } = "Unknown Artist";
         public TimeSpan Duration { get; set; }
         public List<LyricLine> SyncedLyrics { get; set; } = new();
+        public int LyricsOffsetMs { get; set; } = 0;
 
         public string FormattedDuration => $"{(int)Duration.TotalMinutes}:{Duration.Seconds:D2}";
         public bool HasSyncedLyrics => SyncedLyrics.Count > 0;

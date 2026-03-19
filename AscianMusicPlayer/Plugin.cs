@@ -13,6 +13,7 @@ using Dalamud.Interface.Windowing;
 using Dalamud.Interface.ManagedFontAtlas;
 using AscianMusicPlayer.Windows;
 using AscianMusicPlayer.Audio;
+using AscianMusicPlayer.Data;
 
 namespace AscianMusicPlayer
 {
@@ -33,6 +34,7 @@ namespace AscianMusicPlayer
 
         public readonly WindowSystem WindowSystem = new("AscianMusicPlayer");
         public AudioController AudioController { get; private set; }
+        public DatabaseService Database { get; private set; }
         public PlaylistManager PlaylistManager { get; private set; }
         public LyricsService LyricsService { get; private set; }
         public MainWindow MainWindow { get; private set; }
@@ -61,9 +63,20 @@ namespace AscianMusicPlayer
         {
             Settings = PluginInterface.GetPluginConfig() as Settings ?? new Settings();
 
-            this.AudioController = new AudioController();
-            this.PlaylistManager = new PlaylistManager(Settings.Playlists);
-            this.LyricsService = new LyricsService();
+                        this.AudioController = new AudioController();
+                        this.Database = new DatabaseService(PluginInterface.ConfigDirectory.FullName);
+                        this.PlaylistManager = new PlaylistManager(Database);
+
+                        if (Settings.Playlists.Count > 0)
+                        {
+                            Log.Information($"Migrating {Settings.Playlists.Count} playlists to database...");
+                            PlaylistManager.MigrateFromConfig(Settings.Playlists);
+                            Settings.Playlists.Clear();
+                            Settings.Save();
+                            Log.Information("Playlist migration complete.");
+                        }
+
+                        this.LyricsService = new LyricsService();
 
             this.MainWindow = new MainWindow(this);
             this.SettingsWindow = new SettingsWindow(this);
@@ -192,7 +205,7 @@ namespace AscianMusicPlayer
                 return;
             }
 
-            var currentTime = AudioController.CurrentTime;
+            var currentTime = AudioController.CurrentTime + TimeSpan.FromMilliseconds(currentSong.LyricsOffsetMs);
 
             if (Math.Abs((currentTime - _lastKnownPosition).TotalSeconds) > 1.0)
             {
@@ -599,6 +612,7 @@ namespace AscianMusicPlayer
             this.MainWindow.Cleanup();
             this.AudioController.Dispose();
             this.LyricsService.Dispose();
+            this.Database.Dispose();
             this.WindowSystem.RemoveAllWindows();
             CommandManager.RemoveHandler("/amp");
             CommandManager.RemoveHandler("/ampmini");

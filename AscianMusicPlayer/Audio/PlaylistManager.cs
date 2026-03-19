@@ -1,35 +1,52 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using AscianMusicPlayer.Data;
 
 namespace AscianMusicPlayer.Audio
 {
     public class PlaylistManager
     {
-        private readonly List<Playlist> _playlists;
+        private readonly DatabaseService _database;
+        private List<PlaylistInfo> _playlistCache = new();
 
-        public IReadOnlyList<Playlist> Playlists => _playlists;
+        public IReadOnlyList<PlaylistInfo> Playlists => _playlistCache;
 
-        public PlaylistManager(List<Playlist> playlists)
+        public PlaylistManager(DatabaseService database)
         {
-            _playlists = playlists;
+            _database = database;
+            RefreshCache();
         }
 
-        public Playlist CreatePlaylist(string name)
+        private void RefreshCache()
         {
-            var playlist = new Playlist(name);
-            _playlists.Add(playlist);
+            var dbPlaylists = _database.GetAllPlaylists();
+            _playlistCache = dbPlaylists.Select(p => new PlaylistInfo
+            {
+                Id = p.Id,
+                Name = p.Name,
+                SongCount = _database.GetPlaylistSongCount(p.Id)
+            }).ToList();
+        }
+
+        public PlaylistInfo CreatePlaylist(string name)
+        {
+            var id = _database.CreatePlaylist(name);
+            var playlist = new PlaylistInfo { Id = id, Name = name, SongCount = 0 };
+            _playlistCache.Add(playlist);
             return playlist;
         }
 
         public void DeletePlaylist(Guid playlistId)
         {
-            _playlists.RemoveAll(p => p.Id == playlistId);
+            _database.DeletePlaylist(playlistId);
+            _playlistCache.RemoveAll(p => p.Id == playlistId);
         }
 
         public void RenamePlaylist(Guid playlistId, string newName)
         {
-            var playlist = _playlists.FirstOrDefault(p => p.Id == playlistId);
+            _database.RenamePlaylist(playlistId, newName);
+            var playlist = _playlistCache.FirstOrDefault(p => p.Id == playlistId);
             if (playlist != null)
             {
                 playlist.Name = newName;
@@ -38,34 +55,65 @@ namespace AscianMusicPlayer.Audio
 
         public void AddSongToPlaylist(Guid playlistId, string songPath)
         {
-            var playlist = _playlists.FirstOrDefault(p => p.Id == playlistId);
-            if (playlist != null && !playlist.SongPaths.Contains(songPath))
+            if (_database.PlaylistContainsSong(playlistId, songPath))
+                return;
+
+            _database.AddSongToPlaylist(playlistId, songPath);
+            var playlist = _playlistCache.FirstOrDefault(p => p.Id == playlistId);
+            if (playlist != null)
             {
-                playlist.SongPaths.Add(songPath);
+                playlist.SongCount++;
             }
         }
 
         public void RemoveSongFromPlaylist(Guid playlistId, string songPath)
         {
-            var playlist = _playlists.FirstOrDefault(p => p.Id == playlistId);
+            _database.RemoveSongFromPlaylist(playlistId, songPath);
+            var playlist = _playlistCache.FirstOrDefault(p => p.Id == playlistId);
             if (playlist != null)
             {
-                playlist.SongPaths.Remove(songPath);
+                playlist.SongCount = Math.Max(0, playlist.SongCount - 1);
             }
         }
 
-        public Playlist? GetPlaylist(Guid playlistId)
+        public PlaylistInfo? GetPlaylist(Guid playlistId)
         {
-            return _playlists.FirstOrDefault(p => p.Id == playlistId);
+            return _playlistCache.FirstOrDefault(p => p.Id == playlistId);
+        }
+
+        public List<string> GetPlaylistSongPaths(Guid playlistId)
+        {
+            return _database.GetPlaylistSongs(playlistId);
         }
 
         public List<Song> GetPlaylistSongs(Guid playlistId, List<Song> allSongs)
         {
-            var playlist = GetPlaylist(playlistId);
-            if (playlist == null) return new List<Song>();
+            var songPaths = _database.GetPlaylistSongs(playlistId);
+            if (songPaths.Count == 0) return new List<Song>();
 
-            var songPathSet = new HashSet<string>(playlist.SongPaths);
+            var songPathSet = new HashSet<string>(songPaths);
             return allSongs.Where(s => songPathSet.Contains(s.FilePath)).ToList();
         }
+
+        public bool PlaylistContainsSong(Guid playlistId, string songPath)
+        {
+            return _database.PlaylistContainsSong(playlistId, songPath);
+        }
+
+        public void MigrateFromConfig(List<Playlist> legacyPlaylists)
+        {
+            if (legacyPlaylists.Count == 0) return;
+
+            _database.MigrateFromConfig(legacyPlaylists);
+            RefreshCache();
+        }
+    }
+
+    public class PlaylistInfo
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public int SongCount { get; set; }
     }
 }
+
