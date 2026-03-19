@@ -11,6 +11,7 @@ using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using Dalamud.Interface.Windowing;
+using Dalamud.Interface.ManagedFontAtlas;
 using AscianMusicPlayer.Windows;
 using AscianMusicPlayer.Audio;
 
@@ -46,6 +47,9 @@ namespace AscianMusicPlayer
         public LyricsSettingsWindow LyricsSettingsWindow { get; private set; }
         private IDtrBarEntry? _dtrEntry;
 
+        private IFontAtlas? _lyricsFontAtlas;
+        private IFontHandle? _lyricsFontHandle;
+
         private DateTime _lastVolumeCheck = DateTime.MinValue;
         private string? _lastDtrText = null;
         private string? _lastDtrTooltip = null;
@@ -80,6 +84,8 @@ namespace AscianMusicPlayer
             this.WindowSystem.AddWindow(this.FirstLaunchWindow);
             this.WindowSystem.AddWindow(this.LyricsWindow);
             this.WindowSystem.AddWindow(this.LyricsSettingsWindow);
+
+            BuildLyricsFont();
 
             if (!Settings.HasCompletedFirstLaunch)
             {
@@ -433,6 +439,41 @@ namespace AscianMusicPlayer
             Settings.Save();
         }
 
+        private void BuildLyricsFont()
+        {
+            try
+            {
+                _lyricsFontHandle?.Dispose();
+                _lyricsFontAtlas?.Dispose();
+
+                var maxScale = Math.Max(Settings.LyricsCurrentLineScale, Settings.LyricsNextLineScale);
+                var fontSize = 30.0f * maxScale;
+
+                _lyricsFontAtlas = PluginInterface.UiBuilder.CreateFontAtlas(FontAtlasAutoRebuildMode.Async);
+                _lyricsFontHandle = _lyricsFontAtlas.NewDelegateFontHandle(e => e.OnPreBuild(tk => tk.AddDalamudDefaultFont(fontSize)));
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"Failed to build lyrics font: {ex.Message}");
+            }
+        }
+
+        public void RebuildLyricsFont()
+        {
+            BuildLyricsFont();
+        }
+
+        public IFontHandle? GetLyricsFontHandle()
+        {
+            return _lyricsFontHandle;
+        }
+
+        public float GetLyricsFontBaseSize()
+        {
+            var maxScale = Math.Max(Settings.LyricsCurrentLineScale, Settings.LyricsNextLineScale);
+            return 30.0f * maxScale;
+        }
+
         private void InitializeDtr()
         {
             try
@@ -555,6 +596,8 @@ namespace AscianMusicPlayer
             PluginInterface.UiBuilder.OpenMainUi -= DrawMainUI;
             PluginInterface.UiBuilder.OpenConfigUi -= DrawConfigUI;
             _dtrEntry?.Remove();
+            _lyricsFontHandle?.Dispose();
+            _lyricsFontAtlas?.Dispose();
             this.MainWindow.Cleanup();
             this.AudioController.Dispose();
             this.LyricsService.Dispose();

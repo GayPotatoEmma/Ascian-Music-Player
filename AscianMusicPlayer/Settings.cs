@@ -38,6 +38,10 @@ namespace AscianMusicPlayer
         public int LyricsNextLineCount = 2;
         public float LyricsCurrentLineScale = 1.3f;
         public float LyricsNextLineScale = 0.9f;
+        public float LyricsHorizontalAlignment = 0.5f;
+        public float LyricsVerticalAlignment = 0.5f;
+        public float LyricsWindowBgAlpha = 0.9f;
+        public bool LyricsWindowClickthrough = false;
 
         public List<Playlist> Playlists { get; set; } = new();
 

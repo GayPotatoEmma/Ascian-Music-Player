@@ -1,11 +1,9 @@
-using System;
+using System.Collections.Generic;
 using System.Numerics;
 using AscianMusicPlayer.Audio;
 using Dalamud.Interface.Windowing;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Utility.Raii;
-using Dalamud.Interface.Components;
-using Dalamud.Interface;
 
 namespace AscianMusicPlayer.Windows
 {
@@ -19,7 +17,6 @@ namespace AscianMusicPlayer.Windows
         {
             _plugin = plugin;
             this.SizeCondition = ImGuiCond.FirstUseEver;
-            this.Flags = ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
         }
 
         public void UpdateCurrentLyricIndex(int index)
@@ -40,14 +37,17 @@ namespace AscianMusicPlayer.Windows
         {
             this.Size = new Vector2(Plugin.Settings.LyricsWindowWidth, Plugin.Settings.LyricsWindowHeight);
             this.SizeCondition = ImGuiCond.Always;
+            this.BgAlpha = Plugin.Settings.LyricsWindowBgAlpha;
+
+            // Update clickthrough flag dynamically
+            var baseFlags = ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoTitleBar;
+            this.Flags = Plugin.Settings.LyricsWindowClickthrough
+                ? baseFlags | ImGuiWindowFlags.NoInputs
+                : baseFlags;
         }
 
         public override void Draw()
         {
-            DrawSettingsButton();
-
-            ImGui.Spacing();
-
             if (_currentSong == null)
             {
                 DrawCenteredText("No song playing", new Vector4(0.7f, 0.7f, 0.7f, 1.0f));
@@ -61,6 +61,40 @@ namespace AscianMusicPlayer.Windows
             }
 
             var lyrics = _currentSong.SyncedLyrics;
+            var availableHeight = ImGui.GetContentRegionAvail().Y;
+            var spacing = ImGui.GetStyle().ItemSpacing.Y;
+
+            ImGui.SetWindowFontScale(Plugin.Settings.LyricsCurrentLineScale);
+            var currentLineHeight = ImGui.CalcTextSize("M").Y;
+            ImGui.SetWindowFontScale(1.0f);
+
+            ImGui.SetWindowFontScale(Plugin.Settings.LyricsNextLineScale);
+            var nextLineHeight = ImGui.CalcTextSize("M").Y;
+            ImGui.SetWindowFontScale(1.0f);
+
+            var actualNextLineCount = 0;
+            for (int i = 1; i <= Plugin.Settings.LyricsNextLineCount; i++)
+            {
+                int lineIndex = _currentLyricIndex + i;
+                if (lineIndex >= 0 && lineIndex < lyrics.Count)
+                {
+                    actualNextLineCount++;
+                }
+            }
+
+            var totalHeight = currentLineHeight;
+            if (actualNextLineCount > 0)
+            {
+                totalHeight += spacing;
+                totalHeight += actualNextLineCount * nextLineHeight;
+                totalHeight += (actualNextLineCount - 1) * spacing;
+            }
+
+            var verticalOffset = (availableHeight - totalHeight) * Plugin.Settings.LyricsVerticalAlignment;
+            if (verticalOffset > 0)
+            {
+                ImGui.SetCursorPosY(ImGui.GetCursorPosY() + verticalOffset);
+            }
 
             if (_currentLyricIndex >= 0 && _currentLyricIndex < lyrics.Count)
             {
@@ -69,7 +103,7 @@ namespace AscianMusicPlayer.Windows
             }
             else
             {
-                DrawCenteredLyric("", new Vector4(1.0f, 1.0f, 1.0f, 1.0f), Plugin.Settings.LyricsCurrentLineScale);
+                ImGui.Dummy(new Vector2(0, currentLineHeight));
             }
 
             ImGui.Spacing();
@@ -84,7 +118,7 @@ namespace AscianMusicPlayer.Windows
                 }
                 else
                 {
-                    DrawCenteredLyric("", new Vector4(0.6f, 0.6f, 0.6f, 1.0f), Plugin.Settings.LyricsNextLineScale);
+                    ImGui.Dummy(new Vector2(0, nextLineHeight));
                 }
 
                 if (i < Plugin.Settings.LyricsNextLineCount)
@@ -94,39 +128,97 @@ namespace AscianMusicPlayer.Windows
             }
         }
 
-        private void DrawSettingsButton()
-        {
-            var windowWidth = ImGui.GetWindowWidth();
-            var buttonSize = ImGui.GetFrameHeight();
-
-            ImGui.SameLine(windowWidth - buttonSize - ImGui.GetStyle().WindowPadding.X);
-
-            if (ImGuiComponents.IconButton(FontAwesomeIcon.Cog))
-            {
-                _plugin.LyricsSettingsWindow.Toggle();
-            }
-
-            if (ImGui.IsItemHovered())
-            {
-                ImGui.SetTooltip("Lyrics Settings");
-            }
-        }
-
         private void DrawCenteredLyric(string text, Vector4 color, float scale)
         {
             using var colorStyle = ImRaii.PushColor(ImGuiCol.Text, color);
 
-            var textSize = ImGui.CalcTextSize(text);
-            var scaledTextWidth = textSize.X * scale;
+            var fontHandle = _plugin.GetLyricsFontHandle();
+            ImRaii.Font? fontPush = null;
+
+            if (fontHandle != null)
+            {
+                try
+                {
+                    var font = fontHandle.Lock();
+                    if (font != null)
+                    {
+                        fontPush = ImRaii.PushFont(font.ImFont);
+                        var baseFontSize = _plugin.GetLyricsFontBaseSize();
+                        var targetSize = 30.0f * scale;
+                        var fontScale = targetSize / baseFontSize;
+                        ImGui.SetWindowFontScale(fontScale);
+                    }
+                }
+                catch
+                {
+                    ImGui.SetWindowFontScale(scale);
+                }
+            }
+            else
+            {
+                ImGui.SetWindowFontScale(scale);
+            }
+
             var contentRegionMin = ImGui.GetWindowContentRegionMin();
             var contentRegionMax = ImGui.GetWindowContentRegionMax();
             var contentWidth = contentRegionMax.X - contentRegionMin.X;
 
-            ImGui.SetCursorPosX(contentRegionMin.X + (contentWidth - scaledTextWidth) / 2f);
+            // Wrap text into lines and center each line
+            var lines = WrapText(text, contentWidth);
+            foreach (var line in lines)
+            {
+                var lineSize = ImGui.CalcTextSize(line);
+                ImGui.SetCursorPosX(contentRegionMin.X + (contentWidth - lineSize.X) * Plugin.Settings.LyricsHorizontalAlignment);
+                ImGui.Text(line);
+            }
 
-            ImGui.SetWindowFontScale(scale);
-            ImGui.Text(text);
             ImGui.SetWindowFontScale(1.0f);
+
+            fontPush?.Dispose();
+        }
+
+        private static List<string> WrapText(string text, float maxWidth)
+        {
+            var lines = new List<string>();
+            var words = text.Split(' ');
+            var currentLine = "";
+
+            foreach (var word in words)
+            {
+                var testLine = string.IsNullOrEmpty(currentLine) ? word : currentLine + " " + word;
+                var testSize = ImGui.CalcTextSize(testLine);
+
+                if (testSize.X <= maxWidth)
+                {
+                    currentLine = testLine;
+                }
+                else
+                {
+                    if (!string.IsNullOrEmpty(currentLine))
+                    {
+                        lines.Add(currentLine);
+                    }
+
+                    // Check if the single word itself is too long
+                    if (ImGui.CalcTextSize(word).X > maxWidth)
+                    {
+                        // Word is too long, just add it as its own line
+                        lines.Add(word);
+                        currentLine = "";
+                    }
+                    else
+                    {
+                        currentLine = word;
+                    }
+                }
+            }
+
+            if (!string.IsNullOrEmpty(currentLine))
+            {
+                lines.Add(currentLine);
+            }
+
+            return lines;
         }
 
         private void DrawCenteredText(string text, Vector4 color)

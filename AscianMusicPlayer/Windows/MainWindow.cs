@@ -391,9 +391,20 @@ namespace AscianMusicPlayer.Windows
                 _plugin.MiniPlayerWindow.Toggle();
             }
 
-            if (ImGui.MenuItem("Lyrics"))
+            using (var lyricsMenu = ImRaii.Menu("Lyrics"))
             {
-                _plugin.LyricsWindow.Toggle();
+                if (lyricsMenu)
+                {
+                    if (ImGui.MenuItem("Lyrics Overlay"))
+                    {
+                        _plugin.LyricsWindow.Toggle();
+                    }
+
+                    if (ImGui.MenuItem("Overlay Settings"))
+                    {
+                        _plugin.LyricsSettingsWindow.Toggle();
+                    }
+                }
             }
 
             DrawColumnsMenu();
