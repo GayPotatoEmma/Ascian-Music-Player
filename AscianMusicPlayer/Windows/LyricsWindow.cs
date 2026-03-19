@@ -4,6 +4,8 @@ using AscianMusicPlayer.Audio;
 using Dalamud.Interface.Windowing;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Utility.Raii;
+using Dalamud.Interface.Components;
+using Dalamud.Interface;
 
 namespace AscianMusicPlayer.Windows
 {
@@ -16,9 +18,8 @@ namespace AscianMusicPlayer.Windows
         public LyricsWindow(Plugin plugin) : base("Lyrics###AscianMusicPlayerLyrics")
         {
             _plugin = plugin;
-            this.Size = new Vector2(500, 80);
-            this.SizeCondition = ImGuiCond.Always;
-            this.Flags = ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.NoTitleBar;
+            this.SizeCondition = ImGuiCond.FirstUseEver;
+            this.Flags = ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
         }
 
         public void UpdateCurrentLyricIndex(int index)
@@ -35,8 +36,18 @@ namespace AscianMusicPlayer.Windows
             }
         }
 
+        public override void PreDraw()
+        {
+            this.Size = new Vector2(Plugin.Settings.LyricsWindowWidth, Plugin.Settings.LyricsWindowHeight);
+            this.SizeCondition = ImGuiCond.Always;
+        }
+
         public override void Draw()
         {
+            DrawSettingsButton();
+
+            ImGui.Spacing();
+
             if (_currentSong == null)
             {
                 DrawCenteredText("No song playing", new Vector4(0.7f, 0.7f, 0.7f, 1.0f));
@@ -54,45 +65,59 @@ namespace AscianMusicPlayer.Windows
             if (_currentLyricIndex >= 0 && _currentLyricIndex < lyrics.Count)
             {
                 var currentLine = lyrics[_currentLyricIndex];
-                DrawCenteredLyric(currentLine.Text, new Vector4(1.0f, 1.0f, 1.0f, 1.0f), 1.3f);
+                DrawCenteredLyric(currentLine.Text, new Vector4(1.0f, 1.0f, 1.0f, 1.0f), Plugin.Settings.LyricsCurrentLineScale);
             }
             else
             {
-                DrawCenteredLyric("", new Vector4(1.0f, 1.0f, 1.0f, 1.0f), 1.3f);
+                DrawCenteredLyric("", new Vector4(1.0f, 1.0f, 1.0f, 1.0f), Plugin.Settings.LyricsCurrentLineScale);
             }
 
             ImGui.Spacing();
 
-            if (_currentLyricIndex + 1 >= 0 && _currentLyricIndex + 1 < lyrics.Count)
+            for (int i = 1; i <= Plugin.Settings.LyricsNextLineCount; i++)
             {
-                var nextLine = lyrics[_currentLyricIndex + 1];
-                DrawCenteredLyric(nextLine.Text, new Vector4(0.6f, 0.6f, 0.6f, 1.0f), 0.9f);
+                int lineIndex = _currentLyricIndex + i;
+                if (lineIndex >= 0 && lineIndex < lyrics.Count)
+                {
+                    var nextLine = lyrics[lineIndex];
+                    DrawCenteredLyric(nextLine.Text, new Vector4(0.6f, 0.6f, 0.6f, 1.0f), Plugin.Settings.LyricsNextLineScale);
+                }
+                else
+                {
+                    DrawCenteredLyric("", new Vector4(0.6f, 0.6f, 0.6f, 1.0f), Plugin.Settings.LyricsNextLineScale);
+                }
+
+                if (i < Plugin.Settings.LyricsNextLineCount)
+                {
+                    ImGui.Spacing();
+                }
             }
-            else
+        }
+
+        private void DrawSettingsButton()
+        {
+            var windowWidth = ImGui.GetWindowWidth();
+            var buttonSize = ImGui.GetFrameHeight();
+
+            ImGui.SameLine(windowWidth - buttonSize - ImGui.GetStyle().WindowPadding.X);
+
+            if (ImGuiComponents.IconButton(FontAwesomeIcon.Cog))
             {
-                DrawCenteredLyric("", new Vector4(0.6f, 0.6f, 0.6f, 1.0f), 0.9f);
+                _plugin.LyricsSettingsWindow.Toggle();
             }
 
-            ImGui.Spacing();
-
-            if (_currentLyricIndex + 2 >= 0 && _currentLyricIndex + 2 < lyrics.Count)
+            if (ImGui.IsItemHovered())
             {
-                var lineAfterNext = lyrics[_currentLyricIndex + 2];
-                DrawCenteredLyric(lineAfterNext.Text, new Vector4(0.6f, 0.6f, 0.6f, 1.0f), 0.9f);
-            }
-            else
-            {
-                DrawCenteredLyric("", new Vector4(0.6f, 0.6f, 0.6f, 1.0f), 0.9f);
+                ImGui.SetTooltip("Lyrics Settings");
             }
         }
 
         private void DrawCenteredLyric(string text, Vector4 color, float scale)
         {
-            ImGui.PushStyleColor(ImGuiCol.Text, color);
+            using var colorStyle = ImRaii.PushColor(ImGuiCol.Text, color);
 
             var textSize = ImGui.CalcTextSize(text);
             var scaledTextWidth = textSize.X * scale;
-            var windowWidth = ImGui.GetWindowSize().X;
             var contentRegionMin = ImGui.GetWindowContentRegionMin();
             var contentRegionMax = ImGui.GetWindowContentRegionMax();
             var contentWidth = contentRegionMax.X - contentRegionMin.X;
@@ -102,8 +127,6 @@ namespace AscianMusicPlayer.Windows
             ImGui.SetWindowFontScale(scale);
             ImGui.Text(text);
             ImGui.SetWindowFontScale(1.0f);
-
-            ImGui.PopStyleColor();
         }
 
         private void DrawCenteredText(string text, Vector4 color)

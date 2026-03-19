@@ -43,6 +43,7 @@ namespace AscianMusicPlayer
         public AboutWindow AboutWindow { get; private set; }
         public FirstLaunchWindow FirstLaunchWindow { get; private set; }
         public LyricsWindow LyricsWindow { get; private set; }
+        public LyricsSettingsWindow LyricsSettingsWindow { get; private set; }
         private IDtrBarEntry? _dtrEntry;
 
         private DateTime _lastVolumeCheck = DateTime.MinValue;
@@ -69,6 +70,7 @@ namespace AscianMusicPlayer
             this.AboutWindow = new AboutWindow(this);
             this.FirstLaunchWindow = new FirstLaunchWindow(this);
             this.LyricsWindow = new LyricsWindow(this);
+            this.LyricsSettingsWindow = new LyricsSettingsWindow(this);
 
             this.WindowSystem.AddWindow(this.MainWindow);
             this.WindowSystem.AddWindow(this.SettingsWindow);
@@ -77,6 +79,7 @@ namespace AscianMusicPlayer
             this.WindowSystem.AddWindow(this.AboutWindow);
             this.WindowSystem.AddWindow(this.FirstLaunchWindow);
             this.WindowSystem.AddWindow(this.LyricsWindow);
+            this.WindowSystem.AddWindow(this.LyricsSettingsWindow);
 
             if (!Settings.HasCompletedFirstLaunch)
             {
@@ -214,22 +217,24 @@ namespace AscianMusicPlayer
 
                 if (currentTime >= lyricLine.Time)
                 {
+                    bool shouldUpdateLyric = false;
+
                     if (i + 1 < currentSong.SyncedLyrics.Count)
                     {
                         var nextLine = currentSong.SyncedLyrics[i + 1];
                         if (currentTime < nextLine.Time)
                         {
-                            if (Settings.PrintSyncedLyrics)
-                            {
-                                PrintLyricToChat(lyricLine.Text);
-                            }
-                            _lastLyricIndex = i;
-                            LyricsWindow.UpdateCurrentLyricIndex(i);
+                            shouldUpdateLyric = true;
                         }
                     }
                     else
                     {
-                        if (Settings.PrintSyncedLyrics)
+                        shouldUpdateLyric = true;
+                    }
+
+                    if (shouldUpdateLyric)
+                    {
+                        if (Settings.LyricsDisplayMode > 0)
                         {
                             PrintLyricToChat(lyricLine.Text);
                         }
@@ -286,7 +291,7 @@ namespace AscianMusicPlayer
         {
             try
             {
-                if (Settings.UseFlyTextForLyrics)
+                if (Settings.LyricsDisplayMode == 2)
                 {
                     FlyTextGui.AddFlyText(
                         FlyTextKind.Named,
@@ -295,7 +300,7 @@ namespace AscianMusicPlayer
                         0,
                         new SeString(new List<Payload> { new TextPayload($"♪ {lyric}") }),
                         SeString.Empty,
-                        0xFF0000FF,
+                        Settings.FlyTextLyricColor,
                         0,
                         0
                     );

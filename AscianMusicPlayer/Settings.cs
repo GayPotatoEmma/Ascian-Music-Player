@@ -24,11 +24,20 @@ namespace AscianMusicPlayer
 
         public bool ShowInDtr = false;
         public bool PrintSongToChat = false;
+        public int LyricsDisplayMode = 0;
+        public bool FetchLyricsOnline = false;
+        public uint FlyTextLyricColor = 0xFF0000FF;
+
         public bool PrintSyncedLyrics = false;
-        public bool FetchLyricsOnline = true;
         public bool UseFlyTextForLyrics = false;
 
         public float CrossfadeDuration = 0f;
+
+        public int LyricsWindowWidth = 500;
+        public int LyricsWindowHeight = 150;
+        public int LyricsNextLineCount = 2;
+        public float LyricsCurrentLineScale = 1.3f;
+        public float LyricsNextLineScale = 0.9f;
 
         public List<Playlist> Playlists { get; set; } = new();
 

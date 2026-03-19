@@ -4,6 +4,7 @@ using Dalamud.Interface.Windowing;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Utility;
 using Dalamud.Interface.ImGuiFileDialog;
+using Dalamud.Interface.Utility.Raii;
 
 namespace AscianMusicPlayer.Windows
 {
@@ -35,8 +36,7 @@ namespace AscianMusicPlayer.Windows
         public SettingsWindow(Plugin plugin) : base("Settings###AscianMusicPlayerSettings")
         {
             _plugin = plugin;
-            var height = Util.IsWine() ? 505 : 470;
-            this.Size = new Vector2(275, height);
+            this.Size = new Vector2(275, 300);
             this.SizeCondition = ImGuiCond.Always;
             this.Flags = ImGuiWindowFlags.NoResize;
 
@@ -58,7 +58,39 @@ namespace AscianMusicPlayer.Windows
         {
             _fileDialogManager.Draw();
 
-            ImGui.Text("Volume Settings");
+            if (ImGui.BeginTabBar("SettingsTabs"))
+            {
+                if (ImGui.BeginTabItem("Audio"))
+                {
+                    DrawAudioTab();
+                    ImGui.EndTabItem();
+                }
+
+                if (ImGui.BeginTabItem("Display"))
+                {
+                    DrawDisplayTab();
+                    ImGui.EndTabItem();
+                }
+
+                if (ImGui.BeginTabItem("Lyrics"))
+                {
+                    DrawLyricsTab();
+                    ImGui.EndTabItem();
+                }
+
+                if (ImGui.BeginTabItem("Library"))
+                {
+                    DrawLibraryTab();
+                    ImGui.EndTabItem();
+                }
+
+                ImGui.EndTabBar();
+            }
+        }
+
+        private void DrawAudioTab()
+        {
+            ImGui.TextColored(new Vector4(0.2f, 0.8f, 1.0f, 1.0f), "Volume Settings");
             ImGui.Separator();
 
             if (ImGui.Checkbox("Bind to Game Volume", ref Plugin.Settings.BindToGameVolume))
@@ -93,28 +125,13 @@ namespace AscianMusicPlayer.Windows
             ImGui.Separator();
             ImGui.Spacing();
 
-            ImGui.Text("Music Playback Settings");
+            ImGui.TextColored(new Vector4(0.2f, 0.8f, 1.0f, 1.0f), "Playback Settings");
             ImGui.Separator();
 
             if (ImGui.Checkbox("Mute BGM when playing music", ref Plugin.Settings.MuteBgmWhenPlaying))
             {
                 _plugin.SaveSettings();
                 _plugin.AudioController.ApplySettingsChange();
-            }
-
-            ImGui.Spacing();
-
-            if (ImGui.Checkbox("Show current song in Server Info Bar", ref Plugin.Settings.ShowInDtr))
-            {
-                _plugin.SaveSettings();
-                _plugin.ToggleDtr(Plugin.Settings.ShowInDtr);
-            }
-
-            ImGui.Spacing();
-
-            if (ImGui.Checkbox("Print current song to chat", ref Plugin.Settings.PrintSongToChat))
-            {
-                _plugin.SaveSettings();
             }
 
             ImGui.Spacing();
@@ -131,50 +148,83 @@ namespace AscianMusicPlayer.Windows
             {
                 ImGui.SetTooltip("Fade between songs (0 = disabled)");
             }
+        }
+
+        private void DrawDisplayTab()
+        {
+            ImGui.TextColored(new Vector4(0.2f, 0.8f, 1.0f, 1.0f), "Display Settings");
+            ImGui.Separator();
+
+            if (ImGui.Checkbox("Show current song in Server Info Bar", ref Plugin.Settings.ShowInDtr))
+            {
+                _plugin.SaveSettings();
+                _plugin.ToggleDtr(Plugin.Settings.ShowInDtr);
+            }
 
             ImGui.Spacing();
+
+            if (ImGui.Checkbox("Print current song to chat", ref Plugin.Settings.PrintSongToChat))
+            {
+                _plugin.SaveSettings();
+            }
+        }
+
+        private void DrawLyricsTab()
+        {
+            ImGui.TextColored(new Vector4(0.2f, 0.8f, 1.0f, 1.0f), "Lyrics Settings");
             ImGui.Separator();
+
+            ImGui.Text("Lyrics display mode:");
+            ImGui.SetNextItemWidth(180 * ImGui.GetIO().FontGlobalScale);
+            string[] displayModes = { "None", "Chat", "Flytext" };
+            int currentMode = Plugin.Settings.LyricsDisplayMode;
+            if (ImGui.Combo("##LyricsDisplayMode", ref currentMode, displayModes, displayModes.Length))
+            {
+                Plugin.Settings.LyricsDisplayMode = currentMode;
+                _plugin.SaveSettings();
+            }
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.SetTooltip("How to display synced lyrics\nNone: Disabled\nChat: Print to chat\nFlytext: Show as flytext");
+            }
+
+            if (Plugin.Settings.LyricsDisplayMode == 2)
+            {
+                using var indent = ImRaii.PushIndent();
+                var color = Plugin.Settings.FlyTextLyricColor;
+                var r = (color >> 0) & 0xFF;
+                var g = (color >> 8) & 0xFF;
+                var b = (color >> 16) & 0xFF;
+                var a = (color >> 24) & 0xFF;
+                var colorVec = new System.Numerics.Vector4(r / 255f, g / 255f, b / 255f, a / 255f);
+
+                if (ImGui.ColorEdit4("Flytext color", ref colorVec, ImGuiColorEditFlags.NoInputs))
+                {
+                    r = (uint)(colorVec.X * 255);
+                    g = (uint)(colorVec.Y * 255);
+                    b = (uint)(colorVec.Z * 255);
+                    a = (uint)(colorVec.W * 255);
+                    Plugin.Settings.FlyTextLyricColor = r | (g << 8) | (b << 16) | (a << 24);
+                    _plugin.SaveSettings();
+                }
+            }
+
             ImGui.Spacing();
 
-            ImGui.Text("Lyrics Settings");
-            ImGui.Separator();
-
-            if (ImGui.Checkbox("Enable synced lyrics", ref Plugin.Settings.PrintSyncedLyrics))
+            if (ImGui.Checkbox("Fetch lyrics from LRCLIB.net", ref Plugin.Settings.FetchLyricsOnline))
             {
                 _plugin.SaveSettings();
             }
             if (ImGui.IsItemHovered())
             {
-                ImGui.SetTooltip("Display synced lyrics if available in song metadata");
+                ImGui.SetTooltip("Automatically download synced lyrics if not in metadata");
             }
+        }
 
-            if (Plugin.Settings.PrintSyncedLyrics)
-            {
-                ImGui.Indent();
-                if (ImGui.Checkbox("Fetch lyrics from LRCLIB.net", ref Plugin.Settings.FetchLyricsOnline))
-                {
-                    _plugin.SaveSettings();
-                }
-                if (ImGui.IsItemHovered())
-                {
-                    ImGui.SetTooltip("Automatically download synced lyrics if not in metadata");
-                }
-                ImGui.Unindent();
-
-                ImGui.Text("Lyrics display mode:");
-                ImGui.SetNextItemWidth(180 * ImGui.GetIO().FontGlobalScale);
-                string[] displayModes = { "Chat", "Flytext" };
-                int currentMode = Plugin.Settings.UseFlyTextForLyrics ? 1 : 0;
-                if (ImGui.Combo("##LyricsDisplayMode", ref currentMode, displayModes, displayModes.Length))
-                {
-                    Plugin.Settings.UseFlyTextForLyrics = currentMode == 1;
-                    _plugin.SaveSettings();
-                }
-            }
-
-            ImGui.Spacing();
+        private void DrawLibraryTab()
+        {
+            ImGui.TextColored(new Vector4(0.2f, 0.8f, 1.0f, 1.0f), "Media Library");
             ImGui.Separator();
-            ImGui.Spacing();
 
             ImGui.Text("Media Folder:");
             ImGui.SetNextItemWidth(180 * ImGui.GetIO().FontGlobalScale);
