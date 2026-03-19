@@ -56,10 +56,10 @@ namespace AscianMusicPlayer.Windows
                     ImGui.BeginChild("##ScrollingText", new Vector2(windowWidth, ImGui.GetTextLineHeight()), false, ImGuiWindowFlags.NoScrollbar);
 
                     ImGui.SetCursorPosX(-_scrollOffset);
-                    ImGui.TextColored(new Vector4(0, 1, 0, 1), songText);
+                    ImGui.TextColored(new Vector4(0.2f, 0.8f, 1.0f, 1.0f), songText);
 
                     ImGui.SameLine(0, 50f);
-                    ImGui.TextColored(new Vector4(0, 1, 0, 1), songText);
+                    ImGui.TextColored(new Vector4(0.2f, 0.8f, 1.0f, 1.0f), songText);
 
                     ImGui.EndChild();
                 }
@@ -70,7 +70,7 @@ namespace AscianMusicPlayer.Windows
                     {
                         ImGui.SetCursorPosX(ImGui.GetCursorPosX() + offset);
                     }
-                    ImGui.TextColored(new Vector4(0, 1, 0, 1), songText);
+                    ImGui.TextColored(new Vector4(0.2f, 0.8f, 1.0f, 1.0f), songText);
                 }
             }
             else
@@ -105,7 +105,7 @@ namespace AscianMusicPlayer.Windows
             }
 
             bool isShuffle = _plugin.MainWindow.IsShuffle;
-            Vector4? shuffleColor = isShuffle ? new Vector4(0, 1, 0.5f, 1) : null;
+            Vector4? shuffleColor = isShuffle ? new Vector4(0.2f, 0.8f, 1.0f, 1.0f) : null;
             if (ImGuiComponents.IconButton("##MiniShuffle", FontAwesomeIcon.Random, shuffleColor, activeColor: null, hoveredColor: null, size: new Vector2(40, 0)))
             {
                 _plugin.MainWindow.ToggleShufflePublic();
@@ -160,7 +160,7 @@ namespace AscianMusicPlayer.Windows
 
             ImGui.SameLine();
             var repeatMode = _plugin.MainWindow.GetRepeatMode();
-            Vector4? repeatColor = repeatMode != 0 ? new Vector4(0, 1, 0.5f, 1) : null;
+            Vector4? repeatColor = repeatMode != 0 ? new Vector4(0.2f, 0.8f, 1.0f, 1.0f) : null;
             var repeatIcon = repeatMode switch
             {
                 0 => FontAwesomeIcon.Redo,

@@ -619,7 +619,7 @@ namespace AscianMusicPlayer.Windows
                 ImGui.SetCursorPosX(ImGui.GetCursorPosX() + offset);
             }
 
-            Vector4? shuffleColor = _isShuffle ? new Vector4(0, 1, 0.5f, 1) : null;
+            Vector4? shuffleColor = _isShuffle ? new Vector4(0.2f, 0.8f, 1.0f, 1.0f) : null;
             if (ImGuiComponents.IconButton(FontAwesomeIcon.Random, shuffleColor, activeColor: null, hoveredColor: null, size: new Vector2(40, 0)))
             {
                 ToggleShuffle();
@@ -673,7 +673,7 @@ namespace AscianMusicPlayer.Windows
             }
 
             ImGui.SameLine();
-            Vector4? repeatColor = _repeatMode != RepeatMode.Off ? new Vector4(0, 1, 0.5f, 1) : null;
+            Vector4? repeatColor = _repeatMode != RepeatMode.Off ? new Vector4(0.2f, 0.8f, 1.0f, 1.0f) : null;
             var repeatIcon = _repeatMode switch
             {
                 RepeatMode.Off => FontAwesomeIcon.Redo,
@@ -723,7 +723,7 @@ namespace AscianMusicPlayer.Windows
 
             if (_currentSong != null)
             {
-                ImGui.TextColored(new Vector4(0, 1, 0, 1), $"Now Playing: {_currentSong.Title} - {_currentSong.Artist}");
+                ImGui.TextColored(new Vector4(0.2f, 0.8f, 1.0f, 1.0f), $"Now Playing: {_currentSong.Title} - {_currentSong.Artist}");
             }
             else if (_selectedSongIndex >= 0 && _selectedSongIndex < _displaySongs.Count)
             {
@@ -895,10 +895,20 @@ namespace AscianMusicPlayer.Windows
 
                     ImGui.TableNextColumn();
                     bool isSelected = _selectedSongIndex >= 0 && _selectedSongIndex < _displaySongs.Count && _displaySongs[_selectedSongIndex] == song;
+                    if (isSelected)
+                    {
+                        ImGui.PushStyleColor(ImGuiCol.Header, new Vector4(0.2f, 0.8f, 1.0f, 0.4f));
+                        ImGui.PushStyleColor(ImGuiCol.HeaderHovered, new Vector4(0.2f, 0.8f, 1.0f, 0.5f));
+                        ImGui.PushStyleColor(ImGuiCol.HeaderActive, new Vector4(0.2f, 0.8f, 1.0f, 0.6f));
+                    }
                     if (ImGui.Selectable(song.Title, isSelected, ImGuiSelectableFlags.SpanAllColumns))
                     {
                         _selectedSongIndex = _displaySongs.IndexOf(song);
                         PlaySong(song);
+                    }
+                    if (isSelected)
+                    {
+                        ImGui.PopStyleColor(3);
                     }
 
                     using (var popup = ImRaii.ContextPopupItem($"songContext_{i}"))
