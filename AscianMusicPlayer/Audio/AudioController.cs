@@ -60,10 +60,6 @@ namespace AscianMusicPlayer.Audio
             }
         }
 
-        public AudioController()
-        {
-        }
-
         public static List<LyricLine> ParseSyncedLyricsStatic(string lyricsText)
         {
             return ParseSyncedLyrics(lyricsText);
@@ -138,7 +134,6 @@ namespace AscianMusicPlayer.Audio
                         Duration = tfile.Properties.Duration
                     };
 
-                    // Load synced lyrics from external .lrc file
                     var lrcPath = Path.ChangeExtension(file, ".lrc");
                     if (File.Exists(lrcPath))
                     {

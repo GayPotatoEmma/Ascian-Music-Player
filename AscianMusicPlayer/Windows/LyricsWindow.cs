@@ -39,7 +39,6 @@ namespace AscianMusicPlayer.Windows
             this.SizeCondition = ImGuiCond.Always;
             this.BgAlpha = Plugin.Settings.LyricsWindowBgAlpha;
 
-            // Update clickthrough flag dynamically
             var baseFlags = ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoTitleBar;
             this.Flags = Plugin.Settings.LyricsWindowClickthrough
                 ? baseFlags | ImGuiWindowFlags.NoInputs
@@ -163,7 +162,6 @@ namespace AscianMusicPlayer.Windows
             var contentRegionMax = ImGui.GetWindowContentRegionMax();
             var contentWidth = contentRegionMax.X - contentRegionMin.X;
 
-            // Wrap text into lines and center each line
             var lines = WrapText(text, contentWidth);
             foreach (var line in lines)
             {
@@ -199,10 +197,8 @@ namespace AscianMusicPlayer.Windows
                         lines.Add(currentLine);
                     }
 
-                    // Check if the single word itself is too long
                     if (ImGui.CalcTextSize(word).X > maxWidth)
                     {
-                        // Word is too long, just add it as its own line
                         lines.Add(word);
                         currentLine = "";
                     }

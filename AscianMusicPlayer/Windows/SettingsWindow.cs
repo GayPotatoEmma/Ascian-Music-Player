@@ -41,7 +41,7 @@ namespace AscianMusicPlayer.Windows
             this.Flags = ImGuiWindowFlags.NoResize;
 
             _mediaFolderInput = Plugin.Settings.MediaFolder;
-            _selectedChannel = System.Array.IndexOf(_channelIds, Plugin.Settings.MusicChannel);
+            _selectedChannel = Array.IndexOf(_channelIds, Plugin.Settings.MusicChannel);
             if (_selectedChannel < 0) _selectedChannel = 4;
 
             _fileDialogManager = new FileDialogManager();
@@ -50,7 +50,7 @@ namespace AscianMusicPlayer.Windows
         public override void OnOpen()
         {
             _mediaFolderInput = Plugin.Settings.MediaFolder;
-            _selectedChannel = System.Array.IndexOf(_channelIds, Plugin.Settings.MusicChannel);
+            _selectedChannel = Array.IndexOf(_channelIds, Plugin.Settings.MusicChannel);
             if (_selectedChannel < 0) _selectedChannel = 4;
         }
 
@@ -111,7 +111,7 @@ namespace AscianMusicPlayer.Windows
             }
             else
             {
-                ImGui.Text("Music Channel:");
+                ImGui.Text("Music Channel");
                 ImGui.SetNextItemWidth(180 * ImGui.GetIO().FontGlobalScale);
                 if (ImGui.Combo("##MusicChannel", ref _selectedChannel, _channelNames, _channelNames.Length))
                 {
@@ -136,7 +136,7 @@ namespace AscianMusicPlayer.Windows
 
             ImGui.Spacing();
 
-            ImGui.Text("Crossfade Duration:");
+            ImGui.Text("Crossfade Duration");
             ImGui.SetNextItemWidth(180 * ImGui.GetIO().FontGlobalScale);
             if (ImGui.SliderFloat("##Crossfade", ref Plugin.Settings.CrossfadeDuration, 0f, 10f, "%.0f seconds"))
             {
@@ -174,7 +174,7 @@ namespace AscianMusicPlayer.Windows
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 1.0f, 1.0f), "Lyrics Settings");
             ImGui.Separator();
 
-            ImGui.Text("Lyrics display mode:");
+            ImGui.Text("Lyrics display mode");
             ImGui.SetNextItemWidth(180 * ImGui.GetIO().FontGlobalScale);
             string[] displayModes = { "None", "Chat", "Flytext" };
             int currentMode = Plugin.Settings.LyricsDisplayMode;
@@ -196,7 +196,7 @@ namespace AscianMusicPlayer.Windows
                 var g = (color >> 8) & 0xFF;
                 var b = (color >> 16) & 0xFF;
                 var a = (color >> 24) & 0xFF;
-                var colorVec = new System.Numerics.Vector4(r / 255f, g / 255f, b / 255f, a / 255f);
+                var colorVec = new Vector4(r / 255f, g / 255f, b / 255f, a / 255f);
 
                 if (ImGui.ColorEdit4("Flytext color", ref colorVec, ImGuiColorEditFlags.NoInputs))
                 {
@@ -226,7 +226,7 @@ namespace AscianMusicPlayer.Windows
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 1.0f, 1.0f), "Media Library");
             ImGui.Separator();
 
-            ImGui.Text("Media Folder:");
+            ImGui.Text("Media Folder");
             ImGui.SetNextItemWidth(180 * ImGui.GetIO().FontGlobalScale);
             ImGui.InputText("##MediaFolder", ref _mediaFolderInput, 260);
 

@@ -28,9 +28,6 @@ namespace AscianMusicPlayer
         public bool FetchLyricsOnline = false;
         public uint FlyTextLyricColor = 0xFF0000FF;
 
-        public bool PrintSyncedLyrics = false;
-        public bool UseFlyTextForLyrics = false;
-
         public float CrossfadeDuration = 0f;
 
         public int LyricsWindowWidth = 500;

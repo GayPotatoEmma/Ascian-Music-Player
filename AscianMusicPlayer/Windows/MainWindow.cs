@@ -44,7 +44,7 @@ namespace AscianMusicPlayer.Windows
 
         public MainWindow(Plugin plugin) : base("Ascian Music Player###AscianMusicPlayer")
         {
-            this._plugin = plugin;
+            _plugin = plugin;
             this.Size = new Vector2(500, 400);
             this.SizeConstraints = new WindowSizeConstraints
             {

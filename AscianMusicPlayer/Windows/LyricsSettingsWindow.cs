@@ -42,7 +42,7 @@ namespace AscianMusicPlayer.Windows
 
             DrawSectionHeader("Window Size");
 
-            ImGui.Text("Width:");
+            ImGui.Text("Width");
             int width = Plugin.Settings.LyricsWindowWidth;
             if (ImGui.SliderInt("##LyricsWidth", ref width, 300, 1000))
             {
@@ -52,7 +52,7 @@ namespace AscianMusicPlayer.Windows
 
             ImGui.Spacing();
 
-            ImGui.Text("Height:");
+            ImGui.Text("Height");
             int height = Plugin.Settings.LyricsWindowHeight;
             if (ImGui.SliderInt("##LyricsHeight", ref height, 100, 500))
             {
@@ -65,7 +65,7 @@ namespace AscianMusicPlayer.Windows
 
             DrawSectionHeader("Window Appearance");
 
-            ImGui.Text("Background Opacity:");
+            ImGui.Text("Background Opacity");
             float bgAlpha = Plugin.Settings.LyricsWindowBgAlpha;
             if (ImGui.SliderFloat("##BgAlpha", ref bgAlpha, 0.0f, 1.0f, "%.2f"))
             {
@@ -105,7 +105,7 @@ namespace AscianMusicPlayer.Windows
 
             DrawSectionHeader("Text Scale");
 
-            ImGui.Text("Current Line:");
+            ImGui.Text("Current Line");
             float currentScale = Plugin.Settings.LyricsCurrentLineScale;
             if (ImGui.SliderFloat("##CurrentScale", ref currentScale, 0.5f, 3.0f, "%.1f"))
             {
@@ -117,7 +117,7 @@ namespace AscianMusicPlayer.Windows
 
             ImGui.Spacing();
 
-            ImGui.Text("Next Lines:");
+            ImGui.Text("Next Lines");
             float nextScale = Plugin.Settings.LyricsNextLineScale;
             if (ImGui.SliderFloat("##NextScale", ref nextScale, 0.5f, 2.0f, "%.1f"))
             {
@@ -132,7 +132,7 @@ namespace AscianMusicPlayer.Windows
 
             DrawSectionHeader("Alignment");
 
-            ImGui.Text("Horizontal:");
+            ImGui.Text("Horizontal");
             float horizAlign = Plugin.Settings.LyricsHorizontalAlignment;
             if (ImGui.SliderFloat("##HorizAlign", ref horizAlign, 0.0f, 1.0f, "%.2f"))
             {
@@ -143,7 +143,7 @@ namespace AscianMusicPlayer.Windows
 
             ImGui.Spacing();
 
-            ImGui.Text("Vertical:");
+            ImGui.Text("Vertical");
             float vertAlign = Plugin.Settings.LyricsVerticalAlignment;
             if (ImGui.SliderFloat("##VertAlign", ref vertAlign, 0.0f, 1.0f, "%.2f"))
             {

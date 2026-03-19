@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Linq;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using Dalamud.Game.Command;
@@ -19,7 +18,6 @@ namespace AscianMusicPlayer
 {
     public sealed class Plugin : IDalamudPlugin
     {
-
         [PluginService] public static IDalamudPluginInterface PluginInterface { get; private set; } = null!;
         [PluginService] public static ICommandManager CommandManager { get; private set; } = null!;
         [PluginService] public static IGameConfig GameConfig { get; private set; } = null!;
