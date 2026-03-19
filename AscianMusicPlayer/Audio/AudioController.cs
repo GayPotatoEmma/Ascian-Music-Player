@@ -138,18 +138,22 @@ namespace AscianMusicPlayer.Audio
                         Duration = tfile.Properties.Duration
                     };
 
-                    // Try to extract synced lyrics
-                    if (!string.IsNullOrWhiteSpace(tfile.Tag.Lyrics))
+                    // Load synced lyrics from external .lrc file
+                    var lrcPath = Path.ChangeExtension(file, ".lrc");
+                    if (File.Exists(lrcPath))
                     {
-                        Plugin.Log.Debug($"Found lyrics in {file}: {tfile.Tag.Lyrics.Substring(0, Math.Min(100, tfile.Tag.Lyrics.Length))}...");
-                        song.SyncedLyrics = ParseSyncedLyrics(tfile.Tag.Lyrics);
-                        if (song.SyncedLyrics.Count > 0)
+                        try
                         {
-                            Plugin.Log.Information($"Loaded {song.SyncedLyrics.Count} synced lyric lines for: {song.Title}");
+                            var lrcContent = File.ReadAllText(lrcPath);
+                            song.SyncedLyrics = ParseSyncedLyrics(lrcContent);
+                            if (song.SyncedLyrics.Count > 0)
+                            {
+                                Plugin.Log.Information($"Loaded {song.SyncedLyrics.Count} synced lyric lines from .lrc file for: {song.Title}");
+                            }
                         }
-                        else
+                        catch (Exception lrcEx)
                         {
-                            Plugin.Log.Debug($"No synced lyrics found in lyrics text for: {song.Title}");
+                            Plugin.Log.Warning($"Failed to load .lrc file for {song.Title}: {lrcEx.Message}");
                         }
                     }
 

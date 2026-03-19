@@ -217,7 +217,7 @@ namespace AscianMusicPlayer.Windows
             }
             if (ImGui.IsItemHovered())
             {
-                ImGui.SetTooltip("Automatically download synced lyrics if not in metadata");
+                ImGui.SetTooltip("Automatically download synced lyrics if no .lrc file exists");
             }
         }
 
