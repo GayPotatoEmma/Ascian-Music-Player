@@ -47,6 +47,19 @@ namespace AscianMusicPlayer.Data
                     SongPath TEXT PRIMARY KEY,
                     LyricsOffsetMs INTEGER DEFAULT 0
                 );
+
+                CREATE TABLE IF NOT EXISTS SongMetadataCache (
+                    SongPath TEXT PRIMARY KEY,
+                    Title TEXT NOT NULL,
+                    Artist TEXT NOT NULL,
+                    Album TEXT NOT NULL,
+                    AlbumArtist TEXT NOT NULL,
+                    TrackNumber INTEGER NOT NULL,
+                    DurationTicks INTEGER NOT NULL,
+                    LastModified INTEGER NOT NULL
+                );
+
+                PRAGMA journal_mode=WAL;
             ";
             command.ExecuteNonQuery();
         }
@@ -287,11 +300,142 @@ namespace AscianMusicPlayer.Data
             command.ExecuteNonQuery();
         }
 
+        public void CleanupMetadataCache(List<string> activeFilePaths)
+        {
+            using var connection = CreateConnection();
+            connection.Open();
+
+            using var transaction = connection.BeginTransaction();
+            try
+            {
+                using var createTemp = connection.CreateCommand();
+                createTemp.CommandText = "CREATE TEMP TABLE IF NOT EXISTS ActiveSongs (SongPath TEXT PRIMARY KEY)";
+                createTemp.ExecuteNonQuery();
+
+                using var clearTemp = connection.CreateCommand();
+                clearTemp.CommandText = "DELETE FROM ActiveSongs";
+                clearTemp.ExecuteNonQuery();
+
+                const int chunkSize = 900;
+                for (int offset = 0; offset < activeFilePaths.Count; offset += chunkSize)
+                {
+                    var chunk = activeFilePaths.GetRange(offset, Math.Min(chunkSize, activeFilePaths.Count - offset));
+                    using var insertCmd = connection.CreateCommand();
+                    var values = new List<string>();
+                    for (int i = 0; i < chunk.Count; i++)
+                    {
+                        var paramName = $"@p{i}";
+                        values.Add($"({paramName})");
+                        insertCmd.Parameters.AddWithValue(paramName, chunk[i]);
+                    }
+                    insertCmd.CommandText = $"INSERT OR IGNORE INTO ActiveSongs (SongPath) VALUES {string.Join(",", values)}";
+                    insertCmd.ExecuteNonQuery();
+                }
+
+                using var deleteCmd = connection.CreateCommand();
+                deleteCmd.CommandText = "DELETE FROM SongMetadataCache WHERE SongPath NOT IN (SELECT SongPath FROM ActiveSongs)";
+                var deleted = deleteCmd.ExecuteNonQuery();
+
+                using var dropTemp = connection.CreateCommand();
+                dropTemp.CommandText = "DROP TABLE IF EXISTS ActiveSongs";
+                dropTemp.ExecuteNonQuery();
+
+                transaction.Commit();
+
+                if (deleted > 0)
+                    Plugin.Log.Information($"Cleaned up {deleted} stale metadata cache entries");
+            }
+            catch
+            {
+                transaction.Rollback();
+                throw;
+            }
+        }
+
         public void Dispose()
         {
             if (_disposed) return;
             _disposed = true;
             GC.SuppressFinalize(this);
+        }
+
+        public Dictionary<string, SongMetadataDto> GetCachedMetadata(List<string> filePaths)
+        {
+            var result = new Dictionary<string, SongMetadataDto>(StringComparer.OrdinalIgnoreCase);
+            if (filePaths.Count == 0) return result;
+
+            using var connection = CreateConnection();
+            connection.Open();
+
+            const int chunkSize = 900;
+            for (int offset = 0; offset < filePaths.Count; offset += chunkSize)
+            {
+                var chunk = filePaths.GetRange(offset, Math.Min(chunkSize, filePaths.Count - offset));
+
+                using var command = connection.CreateCommand();
+                var paramNames = new List<string>();
+                for (int i = 0; i < chunk.Count; i++)
+                {
+                    var paramName = $"@p{i}";
+                    paramNames.Add(paramName);
+                    command.Parameters.AddWithValue(paramName, chunk[i]);
+                }
+
+                command.CommandText = $"SELECT SongPath, Title, Artist, Album, AlbumArtist, TrackNumber, DurationTicks, LastModified FROM SongMetadataCache WHERE SongPath IN ({string.Join(",", paramNames)})";
+
+                using var reader = command.ExecuteReader();
+                while (reader.Read())
+                {
+                    result[reader.GetString(0)] = new SongMetadataDto
+                    {
+                        Title = reader.GetString(1),
+                        Artist = reader.GetString(2),
+                        Album = reader.GetString(3),
+                        AlbumArtist = reader.GetString(4),
+                        TrackNumber = (uint)reader.GetInt64(5),
+                        DurationTicks = reader.GetInt64(6),
+                        LastModified = reader.GetInt64(7)
+                    };
+                }
+            }
+
+            return result;
+        }
+
+        public void SaveMetadataCache(List<(Audio.Song Song, long LastModifiedTicks)> entries)
+        {
+            if (entries.Count == 0) return;
+
+            using var connection = CreateConnection();
+            connection.Open();
+
+            using var transaction = connection.BeginTransaction();
+            try
+            {
+                foreach (var (song, lastModified) in entries)
+                {
+                    using var command = connection.CreateCommand();
+                    command.CommandText = @"
+                        INSERT OR REPLACE INTO SongMetadataCache (SongPath, Title, Artist, Album, AlbumArtist, TrackNumber, DurationTicks, LastModified)
+                        VALUES (@SongPath, @Title, @Artist, @Album, @AlbumArtist, @TrackNumber, @DurationTicks, @LastModified)";
+                    command.Parameters.AddWithValue("@SongPath", song.FilePath);
+                    command.Parameters.AddWithValue("@Title", song.Title);
+                    command.Parameters.AddWithValue("@Artist", song.Artist);
+                    command.Parameters.AddWithValue("@Album", song.Album);
+                    command.Parameters.AddWithValue("@AlbumArtist", song.AlbumArtist);
+                    command.Parameters.AddWithValue("@TrackNumber", (long)song.TrackNumber);
+                    command.Parameters.AddWithValue("@DurationTicks", song.Duration.Ticks);
+                    command.Parameters.AddWithValue("@LastModified", lastModified);
+                    command.ExecuteNonQuery();
+                }
+
+                transaction.Commit();
+            }
+            catch
+            {
+                transaction.Rollback();
+                throw;
+            }
         }
     }
 
@@ -301,5 +445,16 @@ namespace AscianMusicPlayer.Data
         public string Name { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
+    }
+
+    public class SongMetadataDto
+    {
+        public string Title { get; set; } = string.Empty;
+        public string Artist { get; set; } = string.Empty;
+        public string Album { get; set; } = string.Empty;
+        public string AlbumArtist { get; set; } = string.Empty;
+        public uint TrackNumber { get; set; }
+        public long DurationTicks { get; set; }
+        public long LastModified { get; set; }
     }
 }
