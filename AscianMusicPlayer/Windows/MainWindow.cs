@@ -127,6 +127,8 @@ namespace AscianMusicPlayer.Windows
         public void LoadSongs()
         {
             _songs = AudioController.LoadSongs(Plugin.Settings.MediaFolder);
+            _plugin.AudioController.LoadMetadataInBackground(_songs, _plugin.Database);
+
             _mediaFolder = Plugin.Settings.MediaFolder;
 
             foreach (var song in _songs)
@@ -155,8 +157,8 @@ namespace AscianMusicPlayer.Windows
 
         private void ApplySearchFilter()
         {
-            if (string.IsNullOrWhiteSpace(_searchTitle) && 
-                string.IsNullOrWhiteSpace(_searchArtist) && 
+            if (string.IsNullOrWhiteSpace(_searchTitle) &&
+                string.IsNullOrWhiteSpace(_searchArtist) &&
                 string.IsNullOrWhiteSpace(_searchAlbum))
             {
                 _filteredSongs = _displaySongs;

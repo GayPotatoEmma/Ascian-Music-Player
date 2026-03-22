@@ -1,8 +1,11 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
 using NAudio.Wave;
 using Dalamud.Game.Config;
 
@@ -23,6 +26,9 @@ namespace AscianMusicPlayer.Audio
         private bool _isCrossfading = false;
         private DateTime _crossfadeStartTime;
         private Song? _nextSong;
+
+        private CancellationTokenSource? _metadataCts;
+        private Task? _metadataTask;
 
         public event EventHandler? SongEnded;
         public event EventHandler<Song>? SongChanged;
@@ -81,8 +87,8 @@ namespace AscianMusicPlayer.Audio
                     int seconds = int.Parse(match.Groups[2].Value);
                     int centiseconds = int.Parse(match.Groups[3].Value);
 
-                    int milliseconds = match.Groups[3].Value.Length == 3 
-                        ? centiseconds 
+                    int milliseconds = match.Groups[3].Value.Length == 3
+                        ? centiseconds
                         : centiseconds * 10;
 
                     string text = match.Groups[4].Value.Trim();
@@ -104,63 +110,168 @@ namespace AscianMusicPlayer.Audio
         public static List<Song> LoadSongs(string folderPath)
         {
             var songs = new List<Song>();
-            if (!Directory.Exists(folderPath)) return songs;
 
-            var searchOption = Plugin.Settings.SearchSubfolders 
-                ? SearchOption.AllDirectories 
+            if (!Directory.Exists(folderPath))
+                return songs;
+
+            var searchOption = Plugin.Settings.SearchSubfolders
+                ? SearchOption.AllDirectories
                 : SearchOption.TopDirectoryOnly;
-            
-            var files = Directory.EnumerateFiles(folderPath, "*.*", searchOption)
-                .Where(s => 
-                {
-                    var ext = Path.GetExtension(s);
-                    return ext.Equals(".mp3", StringComparison.OrdinalIgnoreCase) ||
-                           ext.Equals(".wav", StringComparison.OrdinalIgnoreCase) ||
-                           ext.Equals(".flac", StringComparison.OrdinalIgnoreCase);
-                });
 
-            foreach (var file in files)
+            foreach (var file in Directory.EnumerateFiles(folderPath, "*.*", searchOption))
             {
-                try
-                {
-                    var tfile = TagLib.File.Create(file);
-                    var song = new Song
-                    {
-                        FilePath = file,
-                        Title = tfile.Tag.Title ?? Path.GetFileNameWithoutExtension(file),
-                        Artist = tfile.Tag.FirstPerformer ?? "Unknown",
-                        Album = tfile.Tag.Album ?? "Unknown",
-                        AlbumArtist = tfile.Tag.FirstAlbumArtist ?? tfile.Tag.FirstPerformer ?? "Unknown",
-                        TrackNumber = tfile.Tag.Track,
-                        Duration = tfile.Properties.Duration
-                    };
+                var ext = Path.GetExtension(file);
+                if (!ext.Equals(".mp3", StringComparison.OrdinalIgnoreCase) &&
+                    !ext.Equals(".wav", StringComparison.OrdinalIgnoreCase) &&
+                    !ext.Equals(".flac", StringComparison.OrdinalIgnoreCase))
+                    continue;
 
-                    var lrcPath = Path.ChangeExtension(file, ".lrc");
-                    if (File.Exists(lrcPath))
+                songs.Add(new Song
+                {
+                    FilePath = file,
+                    Title = Path.GetFileNameWithoutExtension(file),
+                    Artist = "Unknown",
+                    Album = "Unknown",
+                    AlbumArtist = "Unknown"
+                });
+            }
+
+            return songs;
+        }
+
+        public void LoadMetadataInBackground(List<Song> songs, Data.DatabaseService database)
+        {
+            _metadataCts?.Cancel();
+            _metadataCts?.Dispose();
+            _metadataCts = new CancellationTokenSource();
+            var ct = _metadataCts.Token;
+
+            _metadataTask = Task.Run(() =>
+            {
+                var filePaths = songs.Select(s => s.FilePath).ToList();
+
+                if (ct.IsCancellationRequested) return;
+
+                var cache = database.GetCachedMetadata(filePaths);
+
+                var uncachedSongs = new ConcurrentBag<Song>();
+
+                foreach (var song in songs)
+                {
+                    if (ct.IsCancellationRequested) return;
+
+                    try
                     {
+                        long lastModified = File.GetLastWriteTimeUtc(song.FilePath).Ticks;
+
+                        if (cache.TryGetValue(song.FilePath, out var cached) && cached.LastModified == lastModified)
+                        {
+                            song.Title = cached.Title;
+                            song.Artist = cached.Artist;
+                            song.Album = cached.Album;
+                            song.AlbumArtist = cached.AlbumArtist;
+                            song.TrackNumber = cached.TrackNumber;
+                            song.Duration = TimeSpan.FromTicks(cached.DurationTicks);
+                        }
+                        else
+                        {
+                            uncachedSongs.Add(song);
+                        }
+                        
                         try
                         {
-                            var lrcContent = File.ReadAllText(lrcPath);
-                            song.SyncedLyrics = ParseSyncedLyrics(lrcContent);
-                            if (song.SyncedLyrics.Count > 0)
+                            var lrcPath = Path.ChangeExtension(song.FilePath, ".lrc");
+                            if (File.Exists(lrcPath))
                             {
-                                Plugin.Log.Information($"Loaded {song.SyncedLyrics.Count} synced lyric lines from .lrc file for: {song.Title}");
+                                var lrcContent = File.ReadAllText(lrcPath);
+                                song.SyncedLyrics = ParseSyncedLyrics(lrcContent);
+                                if (song.SyncedLyrics.Count > 0)
+                                {
+                                    Plugin.Log.Information($"Loaded {song.SyncedLyrics.Count} synced lyric lines from .lrc file for: {song.Title}");
+                                }
                             }
                         }
                         catch (Exception lrcEx)
                         {
-                            Plugin.Log.Warning($"Failed to load .lrc file for {song.Title}: {lrcEx.Message}");
+                            Plugin.Log.Warning($"Failed to load .lrc file for {song.FilePath}: {lrcEx.Message}");
                         }
                     }
+                    catch
+                    {
+                        uncachedSongs.Add(song);
+                    }
+                }
 
-                    songs.Add(song);
+                Plugin.Log.Information($"Metadata cache: {songs.Count - uncachedSongs.Count} cached, {uncachedSongs.Count} to read");
+
+                var newlyCached = new ConcurrentBag<(Song Song, long LastModifiedTicks)>();
+
+                var options = new ParallelOptions
+                {
+                    MaxDegreeOfParallelism = 2,
+                    CancellationToken = ct
+                };
+
+                try
+                {
+                    Parallel.ForEach(uncachedSongs, options, song =>
+                    {
+                        try
+                        {
+                            using var tfile = TagLib.File.Create(song.FilePath);
+
+                            song.Title = string.IsNullOrWhiteSpace(tfile.Tag.Title)
+                                ? Path.GetFileNameWithoutExtension(song.FilePath)
+                                : tfile.Tag.Title;
+
+                            song.Artist = tfile.Tag.FirstPerformer ?? "Unknown";
+                            song.Album = tfile.Tag.Album ?? "Unknown";
+                            song.AlbumArtist = tfile.Tag.FirstAlbumArtist ?? song.Artist;
+                            song.TrackNumber = tfile.Tag.Track;
+                            song.Duration = tfile.Properties.Duration;
+
+                            long lastModified = File.GetLastWriteTimeUtc(song.FilePath).Ticks;
+                            newlyCached.Add((song, lastModified));
+                        }
+                        catch
+                        {
+                            Plugin.Log.Information($"Failed to read metadata for: {song.FilePath}");
+                        }
+                    });
+                }
+                catch (OperationCanceledException)
+                {
+                    Plugin.Log.Information("Metadata loading was cancelled");
+                    return;
+                }
+
+                if (ct.IsCancellationRequested) return;
+
+                if (!newlyCached.IsEmpty)
+                {
+                    try
+                    {
+                        database.SaveMetadataCache(newlyCached.ToList());
+                    }
+                    catch (Exception ex)
+                    {
+                        Plugin.Log.Warning($"Failed to save metadata cache: {ex.Message}");
+                    }
+                }
+
+                if (ct.IsCancellationRequested) return;
+
+                try
+                {
+                    database.CleanupMetadataCache(filePaths);
                 }
                 catch (Exception ex)
                 {
-                    Plugin.Log.Error($"Failed to load metadata for {file}: {ex.Message}");
+                    Plugin.Log.Warning($"Failed to clean metadata cache: {ex.Message}");
                 }
-            }
-            return songs;
+
+                Plugin.Log.Information("Finished background metadata load");
+            }, ct);
         }
 
         public void Play(Song song)
@@ -468,6 +579,22 @@ namespace AscianMusicPlayer.Audio
 
         public void Dispose()
         {
+            if (_metadataCts != null)
+            {
+                _metadataCts.Cancel();
+                try
+                {
+                    _metadataTask?.Wait(TimeSpan.FromSeconds(5));
+                }
+                catch (AggregateException)
+                {
+                    // Ignore exceptions from task cancellation, they are expected
+                }
+                _metadataCts.Dispose();
+                _metadataCts = null;
+                _metadataTask = null;
+            }
+
             _pendingBgmUnmute = false;
 
             if (_weMutedGame)
@@ -505,3 +632,5 @@ namespace AscianMusicPlayer.Audio
         }
     }
 }
+
+
