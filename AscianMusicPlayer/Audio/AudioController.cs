@@ -177,6 +177,24 @@ namespace AscianMusicPlayer.Audio
                         {
                             uncachedSongs.Add(song);
                         }
+                        
+                        try
+                        {
+                            var lrcPath = Path.ChangeExtension(song.FilePath, ".lrc");
+                            if (File.Exists(lrcPath))
+                            {
+                                var lrcContent = File.ReadAllText(lrcPath);
+                                song.SyncedLyrics = ParseSyncedLyrics(lrcContent);
+                                if (song.SyncedLyrics.Count > 0)
+                                {
+                                    Plugin.Log.Information($"Loaded {song.SyncedLyrics.Count} synced lyric lines from .lrc file for: {song.Title}");
+                                }
+                            }
+                        }
+                        catch (Exception lrcEx)
+                        {
+                            Plugin.Log.Warning($"Failed to load .lrc file for {song.FilePath}: {lrcEx.Message}");
+                        }
                     }
                     catch
                     {
