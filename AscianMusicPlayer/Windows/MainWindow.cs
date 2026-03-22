@@ -14,7 +14,7 @@ using Dalamud.Utility;
 
 namespace AscianMusicPlayer.Windows
 {
-    public class MainWindow : Window
+    public class MainWindow : PluginWindow
     {
         private enum RepeatMode
         {

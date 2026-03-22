@@ -7,7 +7,7 @@ using Dalamud.Interface.Utility.Raii;
 
 namespace AscianMusicPlayer.Windows
 {
-    public class LyricsSettingsWindow : Window
+    public class LyricsSettingsWindow : PluginWindow
     {
         private static readonly Vector4 SectionColor = new(0.2f, 0.8f, 1.0f, 1.0f);
         private readonly Plugin _plugin;

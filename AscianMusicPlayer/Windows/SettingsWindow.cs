@@ -8,7 +8,7 @@ using Dalamud.Interface.Utility.Raii;
 
 namespace AscianMusicPlayer.Windows
 {
-    public class SettingsWindow : Window
+    public class SettingsWindow : PluginWindow
     {
         private readonly Plugin _plugin;
         private string _mediaFolderInput = string.Empty;
@@ -36,7 +36,7 @@ namespace AscianMusicPlayer.Windows
         public SettingsWindow(Plugin plugin) : base("Settings###AscianMusicPlayerSettings")
         {
             _plugin = plugin;
-            this.Size = new Vector2(275, 300);
+            this.Size = new Vector2(285, 300);
             this.SizeCondition = ImGuiCond.Always;
             this.Flags = ImGuiWindowFlags.NoResize;
 
@@ -158,6 +158,33 @@ namespace AscianMusicPlayer.Windows
             if (ImGui.Checkbox("Print current song to chat", ref Plugin.Settings.PrintSongToChat))
             {
                 _plugin.SaveSettings();
+            }
+
+            ImGui.Spacing();
+
+            if (ImGui.Checkbox("Hide plugin UI when game UI is hidden", ref Plugin.Settings.HideWithGameUi))
+            {
+                _plugin.SaveSettings();
+            }
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.SetTooltip("Hides all plugin windows when the game UI is hidden.\nThis is independent of the Dalamud option to hide plugin UI.");
+            }
+
+            ImGui.Spacing();
+            ImGui.Separator();
+            ImGui.Spacing();
+
+            ImGui.TextColored(new Vector4(0.2f, 0.8f, 1.0f, 1.0f), "Mini Player");
+            ImGui.Separator();
+
+            if (ImGui.Checkbox("Enable text scrolling", ref Plugin.Settings.MiniPlayerTextScrolling))
+            {
+                _plugin.SaveSettings();
+            }
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.SetTooltip("Scrolls the song title when it is too long to fit in the Mini Player.");
             }
         }
 

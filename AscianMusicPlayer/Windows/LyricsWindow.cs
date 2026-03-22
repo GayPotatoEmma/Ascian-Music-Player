@@ -7,7 +7,7 @@ using Dalamud.Interface.Utility.Raii;
 
 namespace AscianMusicPlayer.Windows
 {
-    public class LyricsWindow : Window
+    public class LyricsWindow : PluginWindow
     {
         private readonly Plugin _plugin;
         private Song? _currentSong;

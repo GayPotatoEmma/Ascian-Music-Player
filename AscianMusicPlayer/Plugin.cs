@@ -27,6 +27,7 @@ namespace AscianMusicPlayer
         [PluginService] public static ICommandManager CommandManager { get; private set; } = null!;
         [PluginService] public static IGameConfig GameConfig { get; private set; } = null!;
         [PluginService] public static IPluginLog Log { get; private set; } = null!;
+        [PluginService] public static IGameGui GameGui { get; private set; } = null!;
         [PluginService] public static IFramework Framework { get; private set; } = null!;
         [PluginService] public static IDtrBar DtrBar { get; private set; } = null!;
         [PluginService] public static INotificationManager NotificationManager { get; private set; } = null!;
@@ -147,6 +148,7 @@ namespace AscianMusicPlayer
             PluginInterface.UiBuilder.Draw += DrawUI;
             PluginInterface.UiBuilder.OpenMainUi += DrawMainUI;
             PluginInterface.UiBuilder.OpenConfigUi += DrawConfigUI;
+            PluginInterface.UiBuilder.DisableUserUiHide = true;
 
             Framework.Update += OnFrameworkUpdate;
 

@@ -8,7 +8,7 @@ using Dalamud.Interface.Utility.Raii;
 
 namespace AscianMusicPlayer.Windows
 {
-    public class PlaylistWindow : Window
+    public class PlaylistWindow : PluginWindow
     {
         private readonly Plugin _plugin;
         private Guid? _selectedPlaylistId;

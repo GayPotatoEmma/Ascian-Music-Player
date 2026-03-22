@@ -25,6 +25,9 @@ namespace AscianMusicPlayer
 
         public bool ShowInDtr = false;
         public bool PrintSongToChat = false;
+
+        public bool HideWithGameUi = true;
+        public bool MiniPlayerTextScrolling = true;
         public int LyricsDisplayMode = 0;
         public bool FetchLyricsOnline = false;
         public uint FlyTextLyricColor = 0xFF0000FF;

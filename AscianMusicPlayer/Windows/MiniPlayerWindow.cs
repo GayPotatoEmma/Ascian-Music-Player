@@ -23,6 +23,13 @@ namespace AscianMusicPlayer.Windows
             this.Flags = ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse | ImGuiWindowFlags.NoResize;
         }
 
+        public override bool DrawConditions()
+        {
+            if (!Plugin.Settings.HideWithGameUi)
+                return true;
+            return !Plugin.GameGui.GameUiHidden;
+        }
+
         public override void Draw()
         {
             var currentSong = _plugin.MainWindow.GetCurrentSong();
@@ -39,7 +46,7 @@ namespace AscianMusicPlayer.Windows
                     _lastSongText = songText;
                 }
 
-                if (textWidth > windowWidth)
+                if (textWidth > windowWidth && Plugin.Settings.MiniPlayerTextScrolling)
                 {
                     var now = DateTime.UtcNow;
                     float deltaTime = (float)(now - _lastScrollUpdate).TotalSeconds;

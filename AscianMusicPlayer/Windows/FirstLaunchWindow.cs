@@ -9,7 +9,7 @@ using Dalamud.Utility;
 
 namespace AscianMusicPlayer.Windows
 {
-    public class FirstLaunchWindow : Window
+    public class FirstLaunchWindow : PluginWindow
     {
         private readonly Plugin _plugin;
         private readonly FileDialogManager _fileDialogManager;

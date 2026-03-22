@@ -10,7 +10,7 @@ using Dalamud.Utility;
 
 namespace AscianMusicPlayer.Windows
 {
-    public class AboutWindow : Window
+    public class AboutWindow : PluginWindow
     {
         private ISharedImmediateTexture? _logoTexture;
         private bool _textureLoadAttempted = false;
