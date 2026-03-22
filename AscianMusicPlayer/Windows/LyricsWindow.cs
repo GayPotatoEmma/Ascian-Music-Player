@@ -165,8 +165,16 @@ namespace AscianMusicPlayer.Windows
 
             var lines = WrapText(text, contentWidth);
             var drawOutline = outlineEnabled && outlineWidth > 0;
+            var drawShadow = Plugin.Settings.LyricsShadowEnabled && Plugin.Settings.LyricsShadowOpacity > 0f;
 
             var textColor = ImGui.GetColorU32(color);
+
+            uint shadowColor = 0;
+            if (drawShadow)
+            {
+                var alpha = (byte)(Plugin.Settings.LyricsShadowOpacity / 100f * 255f);
+                shadowColor = (uint)(alpha << 24);
+            }
 
             foreach (var line in lines)
             {
@@ -177,6 +185,15 @@ namespace AscianMusicPlayer.Windows
                 var screenPos = ImGui.GetCursorScreenPos();
 
                 ImGui.PushClipRect(Vector2.NegativeInfinity, Vector2.One * float.MaxValue, false);
+
+                if (drawShadow)
+                {
+                    var shadowOffset = drawOutline ? outlineWidth + 1 : 2;
+                    for (int i = 0; i < shadowOffset; i++)
+                    {
+                        drawList.AddText(screenPos + new Vector2(i + 1, i + 1), shadowColor, line);
+                    }
+                }
 
                 if (drawOutline)
                 {

@@ -57,6 +57,9 @@ namespace AscianMusicPlayer
         public int LyricsNextLineOutlineWidth = 1;
         public uint LyricsNextLineOutlineColor = 0xFF000000;
 
+        public bool LyricsShadowEnabled = false;
+        public float LyricsShadowOpacity = 50f;
+
         public List<Playlist> Playlists { get; set; } = new();
 
         public const uint ChannelBgm = 175;

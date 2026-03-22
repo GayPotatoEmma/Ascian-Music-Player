@@ -418,6 +418,29 @@ namespace AscianMusicPlayer.Windows
             ImGui.Spacing();
             ImGui.Spacing();
 
+            DrawSectionHeader("Shadow");
+
+            bool shadowEnabled = Plugin.Settings.LyricsShadowEnabled;
+            if (ImGui.Checkbox("Enable shadow", ref shadowEnabled))
+            {
+                Plugin.Settings.LyricsShadowEnabled = shadowEnabled;
+                _plugin.SaveSettings();
+            }
+
+            if (Plugin.Settings.LyricsShadowEnabled)
+            {
+                ImGui.Text("Opacity");
+                float shadowOpacity = Plugin.Settings.LyricsShadowOpacity;
+                if (ImGui.SliderFloat("##ShadowOpacity", ref shadowOpacity, 1f, 100f, "%.0f%%", ImGuiSliderFlags.AlwaysClamp))
+                {
+                    Plugin.Settings.LyricsShadowOpacity = shadowOpacity;
+                    _plugin.SaveSettings();
+                }
+            }
+
+            ImGui.Spacing();
+            ImGui.Spacing();
+
             DrawSectionHeader("Lines Shown");
 
             ImGui.Text("Next Lines:");
