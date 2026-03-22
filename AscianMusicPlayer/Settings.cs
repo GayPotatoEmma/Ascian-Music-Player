@@ -49,6 +49,14 @@ namespace AscianMusicPlayer
         public uint LyricsCurrentLineColor = 0xFFFFFFFF;
         public uint LyricsNextLineColor = 0xFF999999;
 
+        public bool LyricsCurrentLineOutlineEnabled = false;
+        public int LyricsCurrentLineOutlineWidth = 1;
+        public uint LyricsCurrentLineOutlineColor = 0xFF000000;
+
+        public bool LyricsNextLineOutlineEnabled = false;
+        public int LyricsNextLineOutlineWidth = 1;
+        public uint LyricsNextLineOutlineColor = 0xFF000000;
+
         public List<Playlist> Playlists { get; set; } = new();
 
         public const uint ChannelBgm = 175;

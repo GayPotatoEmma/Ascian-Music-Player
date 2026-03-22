@@ -359,6 +359,65 @@ namespace AscianMusicPlayer.Windows
             ImGui.Spacing();
             ImGui.Spacing();
 
+            DrawSectionHeader("Outline");
+
+            ImGui.Text("Current Line");
+
+            bool currentOutlineEnabled = Plugin.Settings.LyricsCurrentLineOutlineEnabled;
+            if (ImGui.Checkbox("Enable##CurrentOutline", ref currentOutlineEnabled))
+            {
+                Plugin.Settings.LyricsCurrentLineOutlineEnabled = currentOutlineEnabled;
+                _plugin.SaveSettings();
+            }
+
+            if (Plugin.Settings.LyricsCurrentLineOutlineEnabled)
+            {
+                int currentOutlineWidth = Plugin.Settings.LyricsCurrentLineOutlineWidth;
+                if (ImGui.SliderInt("##CurrentOutlineWidth", ref currentOutlineWidth, 1, 5, "%dpx", ImGuiSliderFlags.AlwaysClamp))
+                {
+                    Plugin.Settings.LyricsCurrentLineOutlineWidth = currentOutlineWidth;
+                    _plugin.SaveSettings();
+                }
+
+                var currentOutlineColor = UintToVec4(Plugin.Settings.LyricsCurrentLineOutlineColor);
+                if (ImGui.ColorEdit4("Color##CurrentOutline", ref currentOutlineColor, ImGuiColorEditFlags.NoInputs))
+                {
+                    Plugin.Settings.LyricsCurrentLineOutlineColor = Vec4ToUint(currentOutlineColor);
+                    _plugin.SaveSettings();
+                }
+            }
+
+            ImGui.Spacing();
+
+            ImGui.Text("Next Lines");
+
+            bool nextOutlineEnabled = Plugin.Settings.LyricsNextLineOutlineEnabled;
+            if (ImGui.Checkbox("Enable##NextOutline", ref nextOutlineEnabled))
+            {
+                Plugin.Settings.LyricsNextLineOutlineEnabled = nextOutlineEnabled;
+                _plugin.SaveSettings();
+            }
+
+            if (Plugin.Settings.LyricsNextLineOutlineEnabled)
+            {
+                int nextOutlineWidth = Plugin.Settings.LyricsNextLineOutlineWidth;
+                if (ImGui.SliderInt("##NextOutlineWidth", ref nextOutlineWidth, 1, 5, "%dpx", ImGuiSliderFlags.AlwaysClamp))
+                {
+                    Plugin.Settings.LyricsNextLineOutlineWidth = nextOutlineWidth;
+                    _plugin.SaveSettings();
+                }
+
+                var nextOutlineColor = UintToVec4(Plugin.Settings.LyricsNextLineOutlineColor);
+                if (ImGui.ColorEdit4("Color##NextOutline", ref nextOutlineColor, ImGuiColorEditFlags.NoInputs))
+                {
+                    Plugin.Settings.LyricsNextLineOutlineColor = Vec4ToUint(nextOutlineColor);
+                    _plugin.SaveSettings();
+                }
+            }
+
+            ImGui.Spacing();
+            ImGui.Spacing();
+
             DrawSectionHeader("Lines Shown");
 
             ImGui.Text("Next Lines:");

@@ -98,7 +98,8 @@ namespace AscianMusicPlayer.Windows
             if (_currentLyricIndex >= 0 && _currentLyricIndex < lyrics.Count)
             {
                 var currentLine = lyrics[_currentLyricIndex];
-                DrawCenteredLyric(currentLine.Text, UintToVec4(Plugin.Settings.LyricsCurrentLineColor), Plugin.Settings.LyricsCurrentLineScale);
+                DrawCenteredLyric(currentLine.Text, UintToVec4(Plugin.Settings.LyricsCurrentLineColor), Plugin.Settings.LyricsCurrentLineScale,
+                    Plugin.Settings.LyricsCurrentLineOutlineEnabled, Plugin.Settings.LyricsCurrentLineOutlineWidth, Plugin.Settings.LyricsCurrentLineOutlineColor);
             }
             else
             {
@@ -113,7 +114,8 @@ namespace AscianMusicPlayer.Windows
                 if (lineIndex >= 0 && lineIndex < lyrics.Count)
                 {
                     var nextLine = lyrics[lineIndex];
-                    DrawCenteredLyric(nextLine.Text, UintToVec4(Plugin.Settings.LyricsNextLineColor), Plugin.Settings.LyricsNextLineScale);
+                    DrawCenteredLyric(nextLine.Text, UintToVec4(Plugin.Settings.LyricsNextLineColor), Plugin.Settings.LyricsNextLineScale,
+                        Plugin.Settings.LyricsNextLineOutlineEnabled, Plugin.Settings.LyricsNextLineOutlineWidth, Plugin.Settings.LyricsNextLineOutlineColor);
                 }
                 else
                 {
@@ -127,9 +129,8 @@ namespace AscianMusicPlayer.Windows
             }
         }
 
-        private void DrawCenteredLyric(string text, Vector4 color, float scale)
+        private void DrawCenteredLyric(string text, Vector4 color, float scale, bool outlineEnabled, int outlineWidth, uint outlineColor)
         {
-            using var colorStyle = ImRaii.PushColor(ImGuiCol.Text, color);
 
             var fontHandle = _plugin.GetLyricsFontHandle();
             ImRaii.Font? fontPush = null;
@@ -163,11 +164,41 @@ namespace AscianMusicPlayer.Windows
             var contentWidth = contentRegionMax.X - contentRegionMin.X;
 
             var lines = WrapText(text, contentWidth);
+            var drawOutline = outlineEnabled && outlineWidth > 0;
+
+            var textColor = ImGui.GetColorU32(color);
+
             foreach (var line in lines)
             {
                 var lineSize = ImGui.CalcTextSize(line);
                 ImGui.SetCursorPosX(contentRegionMin.X + (contentWidth - lineSize.X) * Plugin.Settings.LyricsHorizontalAlignment);
-                ImGui.Text(line);
+
+                var drawList = ImGui.GetWindowDrawList();
+                var screenPos = ImGui.GetCursorScreenPos();
+
+                ImGui.PushClipRect(Vector2.NegativeInfinity, Vector2.One * float.MaxValue, false);
+
+                if (drawOutline)
+                {
+                    for (int i = 1; i <= outlineWidth; i++)
+                    {
+                        float w = i;
+                        drawList.AddText(screenPos + new Vector2(-w, -w), outlineColor, line);
+                        drawList.AddText(screenPos + new Vector2( 0, -w), outlineColor, line);
+                        drawList.AddText(screenPos + new Vector2( w, -w), outlineColor, line);
+                        drawList.AddText(screenPos + new Vector2(-w,  0), outlineColor, line);
+                        drawList.AddText(screenPos + new Vector2( w,  0), outlineColor, line);
+                        drawList.AddText(screenPos + new Vector2(-w,  w), outlineColor, line);
+                        drawList.AddText(screenPos + new Vector2( 0,  w), outlineColor, line);
+                        drawList.AddText(screenPos + new Vector2( w,  w), outlineColor, line);
+                    }
+                }
+
+                drawList.AddText(screenPos, textColor, line);
+
+                ImGui.PopClipRect();
+
+                ImGui.Dummy(lineSize);
             }
 
             ImGui.SetWindowFontScale(1.0f);
