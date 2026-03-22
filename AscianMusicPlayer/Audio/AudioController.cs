@@ -139,14 +139,14 @@ namespace AscianMusicPlayer.Audio
             return songs;
         }
 
-        public void LoadMetadataInBackground(List<Song> songs, Data.DatabaseService database)
+        public void LoadMetadataInBackground(List<Song> songs, Data.DatabaseService database, LyricsService lyricsService)
         {
             _metadataCts?.Cancel();
             _metadataCts?.Dispose();
             _metadataCts = new CancellationTokenSource();
             var ct = _metadataCts.Token;
 
-            _metadataTask = Task.Run(() =>
+            _metadataTask = Task.Run(async () =>
             {
                 var filePaths = songs.Select(s => s.FilePath).ToList();
 
@@ -271,6 +271,11 @@ namespace AscianMusicPlayer.Audio
                 }
 
                 Plugin.Log.Information("Finished background metadata load");
+
+                if (Plugin.Settings.FetchLyricsOnline)
+                {
+                    await lyricsService.CheckLyricsAvailabilityInBackground(songs, ct);
+                }
             }, ct);
         }
 

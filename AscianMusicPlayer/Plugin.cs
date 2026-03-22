@@ -277,6 +277,7 @@ namespace AscianMusicPlayer
                 if (lyrics.Count > 0)
                 {
                     song.SyncedLyrics = lyrics;
+                    song.LrcLibLyricsAvailable = true;
                     _lastLyricIndex = -1;
                 }
             }
@@ -294,6 +295,7 @@ namespace AscianMusicPlayer
                 if (lyrics.Count > 0)
                 {
                     song.SyncedLyrics = lyrics;
+                    song.LrcLibLyricsAvailable = true;
                     ChatGui.Print($"Fetched {lyrics.Count} synced lyric lines!", "AMP", 56);
                     Log.Information($"Manually fetched {lyrics.Count} synced lyric lines for: {song.Title}");
                 }

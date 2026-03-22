@@ -23,5 +23,6 @@ namespace AscianMusicPlayer.Audio
 
         public string FormattedDuration => $"{(int)Duration.TotalMinutes}:{Duration.Seconds:D2}";
         public bool HasSyncedLyrics => SyncedLyrics.Count > 0;
+        public bool LrcLibLyricsAvailable { get; set; } = false;
     }
 }

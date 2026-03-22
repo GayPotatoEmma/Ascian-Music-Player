@@ -182,7 +182,7 @@ namespace AscianMusicPlayer.Windows
 
                     _songs = songs;
                     _mediaFolder = mediaFolder;
-                    _plugin.AudioController.LoadMetadataInBackground(songs, _plugin.Database);
+                    _plugin.AudioController.LoadMetadataInBackground(songs, _plugin.Database, _plugin.LyricsService);
                     RefreshDisplaySongs();
                     _sortDirty = true;
                     _isLoadingSongs = false;
@@ -554,6 +554,11 @@ namespace AscianMusicPlayer.Windows
             {
                 Plugin.Settings.Save();
             }
+
+            if (ImGui.Checkbox("Lyrics", ref Plugin.Settings.ShowHasLyricsColumn))
+            {
+                Plugin.Settings.Save();
+            }
         }
 
         private void DrawAddToPlaylistMenu(Song song, List<PlaylistInfo> availablePlaylists)
@@ -817,6 +822,7 @@ namespace AscianMusicPlayer.Windows
             if (Plugin.Settings.ShowArtistColumn) columnCount++;
             if (Plugin.Settings.ShowAlbumColumn) columnCount++;
             if (Plugin.Settings.ShowLengthColumn) columnCount++;
+            if (Plugin.Settings.ShowHasLyricsColumn) columnCount++;
 
             using (var table = ImRaii.Table("SongTable", columnCount, ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.ScrollY | ImGuiTableFlags.Resizable | ImGuiTableFlags.Sortable))
             {
@@ -839,6 +845,10 @@ namespace AscianMusicPlayer.Windows
                 if (Plugin.Settings.ShowLengthColumn)
                 {
                     ImGui.TableSetupColumn("Length", ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.PreferSortAscending, 85);
+                }
+                if (Plugin.Settings.ShowHasLyricsColumn)
+                {
+                    ImGui.TableSetupColumn("Lyrics", ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.PreferSortAscending, 65);
                 }
 
                 ImGui.TableSetupScrollFreeze(0, 2);
@@ -892,6 +902,12 @@ namespace AscianMusicPlayer.Windows
                     searchCol++;
                 }
                 if (Plugin.Settings.ShowLengthColumn)
+                {
+                    ImGui.TableSetColumnIndex(searchCol);
+                    ImGui.Text("");
+                    searchCol++;
+                }
+                if (Plugin.Settings.ShowHasLyricsColumn)
                 {
                     ImGui.TableSetColumnIndex(searchCol);
                     ImGui.Text("");
@@ -963,6 +979,17 @@ namespace AscianMusicPlayer.Windows
                                         : _displaySongs.OrderByDescending(s => s.Duration).ThenByDescending(s => s.Title).ToList();
                                     ApplySearchFilter();
                                 }
+                                visibleCol++;
+                            }
+                            if (Plugin.Settings.ShowHasLyricsColumn)
+                            {
+                                if (actualColumnIndex == visibleCol)
+                                {
+                                    _displaySongs = ascending
+                                        ? _displaySongs.OrderBy(s => s.HasSyncedLyrics || (Plugin.Settings.FetchLyricsOnline && s.LrcLibLyricsAvailable)).ThenBy(s => s.Title).ToList()
+                                        : _displaySongs.OrderByDescending(s => s.HasSyncedLyrics || (Plugin.Settings.FetchLyricsOnline && s.LrcLibLyricsAvailable)).ThenByDescending(s => s.Title).ToList();
+                                    ApplySearchFilter();
+                                }
                             }
 
                             _lastSortSpecs = spec;
@@ -1020,6 +1047,19 @@ namespace AscianMusicPlayer.Windows
                         {
                             ImGui.TableNextColumn();
                             ImGui.Text(song.FormattedDuration);
+                        }
+
+                        if (Plugin.Settings.ShowHasLyricsColumn)
+                        {
+                            ImGui.TableNextColumn();
+                            var hasLyrics = song.HasSyncedLyrics || (Plugin.Settings.FetchLyricsOnline && song.LrcLibLyricsAvailable);
+                            var lyricsIcon = hasLyrics ? "✓" : "x";
+                            var iconColor = hasLyrics
+                                ? new Vector4(0.2f, 0.8f, 0.2f, 1.0f)
+                                : new Vector4(0.5f, 0.5f, 0.5f, 1.0f);
+                            var iconSize = ImGui.CalcTextSize(lyricsIcon);
+                            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + (ImGui.GetContentRegionAvail().X - iconSize.X) / 2f);
+                            ImGui.TextColored(iconColor, lyricsIcon);
                         }
                     }
                 }
