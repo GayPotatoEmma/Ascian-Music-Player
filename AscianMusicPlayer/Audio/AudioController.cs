@@ -4,6 +4,7 @@ using System.IO;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using NAudio.Wave;
 using Dalamud.Game.Config;
@@ -25,6 +26,9 @@ namespace AscianMusicPlayer.Audio
         private bool _isCrossfading = false;
         private DateTime _crossfadeStartTime;
         private Song? _nextSong;
+
+        private CancellationTokenSource? _metadataCts;
+        private Task? _metadataTask;
 
         public event EventHandler? SongEnded;
         public event EventHandler<Song>? SongChanged;
@@ -135,17 +139,27 @@ namespace AscianMusicPlayer.Audio
             return songs;
         }
 
-        public static void LoadMetadataInBackground(List<Song> songs, Data.DatabaseService database)
+        public void LoadMetadataInBackground(List<Song> songs, Data.DatabaseService database)
         {
-            Task.Run(() =>
+            _metadataCts?.Cancel();
+            _metadataCts?.Dispose();
+            _metadataCts = new CancellationTokenSource();
+            var ct = _metadataCts.Token;
+
+            _metadataTask = Task.Run(() =>
             {
                 var filePaths = songs.Select(s => s.FilePath).ToList();
+
+                if (ct.IsCancellationRequested) return;
+
                 var cache = database.GetCachedMetadata(filePaths);
 
                 var uncachedSongs = new ConcurrentBag<Song>();
 
                 foreach (var song in songs)
                 {
+                    if (ct.IsCancellationRequested) return;
+
                     try
                     {
                         long lastModified = File.GetLastWriteTimeUtc(song.FilePath).Ticks;
@@ -176,33 +190,44 @@ namespace AscianMusicPlayer.Audio
 
                 var options = new ParallelOptions
                 {
-                    MaxDegreeOfParallelism = 2
+                    MaxDegreeOfParallelism = 2,
+                    CancellationToken = ct
                 };
 
-                Parallel.ForEach(uncachedSongs, options, song =>
+                try
                 {
-                    try
+                    Parallel.ForEach(uncachedSongs, options, song =>
                     {
-                        using var tfile = TagLib.File.Create(song.FilePath);
+                        try
+                        {
+                            using var tfile = TagLib.File.Create(song.FilePath);
 
-                        song.Title = string.IsNullOrWhiteSpace(tfile.Tag.Title)
-                            ? Path.GetFileNameWithoutExtension(song.FilePath)
-                            : tfile.Tag.Title;
+                            song.Title = string.IsNullOrWhiteSpace(tfile.Tag.Title)
+                                ? Path.GetFileNameWithoutExtension(song.FilePath)
+                                : tfile.Tag.Title;
 
-                        song.Artist = tfile.Tag.FirstPerformer ?? "Unknown";
-                        song.Album = tfile.Tag.Album ?? "Unknown";
-                        song.AlbumArtist = tfile.Tag.FirstAlbumArtist ?? song.Artist;
-                        song.TrackNumber = tfile.Tag.Track;
-                        song.Duration = tfile.Properties.Duration;
+                            song.Artist = tfile.Tag.FirstPerformer ?? "Unknown";
+                            song.Album = tfile.Tag.Album ?? "Unknown";
+                            song.AlbumArtist = tfile.Tag.FirstAlbumArtist ?? song.Artist;
+                            song.TrackNumber = tfile.Tag.Track;
+                            song.Duration = tfile.Properties.Duration;
 
-                        long lastModified = File.GetLastWriteTimeUtc(song.FilePath).Ticks;
-                        newlyCached.Add((song, lastModified));
-                    }
-                    catch
-                    {
-                        Plugin.Log.Information($"Failed to read metadata for: {song.FilePath}");
-                    }
-                });
+                            long lastModified = File.GetLastWriteTimeUtc(song.FilePath).Ticks;
+                            newlyCached.Add((song, lastModified));
+                        }
+                        catch
+                        {
+                            Plugin.Log.Information($"Failed to read metadata for: {song.FilePath}");
+                        }
+                    });
+                }
+                catch (OperationCanceledException)
+                {
+                    Plugin.Log.Information("Metadata loading was cancelled");
+                    return;
+                }
+
+                if (ct.IsCancellationRequested) return;
 
                 if (!newlyCached.IsEmpty)
                 {
@@ -216,6 +241,8 @@ namespace AscianMusicPlayer.Audio
                     }
                 }
 
+                if (ct.IsCancellationRequested) return;
+
                 try
                 {
                     database.CleanupMetadataCache(filePaths);
@@ -226,7 +253,7 @@ namespace AscianMusicPlayer.Audio
                 }
 
                 Plugin.Log.Information("Finished background metadata load");
-            });
+            }, ct);
         }
 
         public void Play(Song song)
@@ -534,6 +561,22 @@ namespace AscianMusicPlayer.Audio
 
         public void Dispose()
         {
+            if (_metadataCts != null)
+            {
+                _metadataCts.Cancel();
+                try
+                {
+                    _metadataTask?.Wait(TimeSpan.FromSeconds(5));
+                }
+                catch (AggregateException)
+                {
+                    // Ignore exceptions from task cancellation, they are expected
+                }
+                _metadataCts.Dispose();
+                _metadataCts = null;
+                _metadataTask = null;
+            }
+
             _pendingBgmUnmute = false;
 
             if (_weMutedGame)
@@ -571,3 +614,5 @@ namespace AscianMusicPlayer.Audio
         }
     }
 }
+
+

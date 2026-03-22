@@ -127,7 +127,7 @@ namespace AscianMusicPlayer.Windows
         public void LoadSongs()
         {
             _songs = AudioController.LoadSongs(Plugin.Settings.MediaFolder);
-            AudioController.LoadMetadataInBackground(_songs, _plugin.Database);
+            _plugin.AudioController.LoadMetadataInBackground(_songs, _plugin.Database);
 
             _mediaFolder = Plugin.Settings.MediaFolder;
 
