@@ -388,6 +388,9 @@ namespace AscianMusicPlayer.Data
         {
             if (_disposed) return;
             _disposed = true;
+
+            SqliteConnection.ClearAllPools();
+
             GC.SuppressFinalize(this);
         }
 

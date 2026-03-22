@@ -46,6 +46,8 @@ namespace AscianMusicPlayer.Windows
 
         private bool _isLoadingSongs;
         private int _loadGeneration;
+        private CancellationTokenSource? _loadSongsCts;
+        private Task? _loadSongsTask;
 
         public MainWindow(Plugin plugin) : base("Ascian Music Player###AscianMusicPlayer")
         {
@@ -72,6 +74,22 @@ namespace AscianMusicPlayer.Windows
         {
             _plugin.AudioController.SongEnded -= OnSongEnded;
             _plugin.AudioController.SongChanged -= OnSongChanged;
+
+            if (_loadSongsCts != null)
+            {
+                _loadSongsCts.Cancel();
+                try
+                {
+                    _loadSongsTask?.Wait(TimeSpan.FromSeconds(5));
+                }
+                catch (AggregateException)
+                {
+                    // Task was cancelled, expected
+                }
+                _loadSongsCts.Dispose();
+                _loadSongsCts = null;
+                _loadSongsTask = null;
+            }
         }
 
         private void OnSongChanged(object? sender, Song song)
@@ -135,12 +153,17 @@ namespace AscianMusicPlayer.Windows
             _isLoadingSongs = true;
             _sortDirty = true;
 
-            Task.Run(() =>
+            _loadSongsCts?.Cancel();
+            _loadSongsCts?.Dispose();
+            _loadSongsCts = new CancellationTokenSource();
+            var ct = _loadSongsCts.Token;
+
+            _loadSongsTask = Task.Run(() =>
             {
                 var mediaFolder = Plugin.Settings.MediaFolder;
                 var songs = AudioController.LoadSongs(mediaFolder);
 
-                if (generation != _loadGeneration) return;
+                if (generation != _loadGeneration || ct.IsCancellationRequested) return;
 
                 var filePaths = songs.Select(s => s.FilePath).ToList();
                 var lyricsOffsets = _plugin.Database.GetAllLyricsOffsets(filePaths);
@@ -151,11 +174,11 @@ namespace AscianMusicPlayer.Windows
                         song.LyricsOffsetMs = offset;
                 }
 
-                if (generation != _loadGeneration) return;
+                if (generation != _loadGeneration || ct.IsCancellationRequested) return;
 
                 Plugin.Framework.RunOnFrameworkThread(() =>
                 {
-                    if (generation != _loadGeneration) return;
+                    if (generation != _loadGeneration || ct.IsCancellationRequested) return;
 
                     _songs = songs;
                     _mediaFolder = mediaFolder;
@@ -164,7 +187,7 @@ namespace AscianMusicPlayer.Windows
                     _sortDirty = true;
                     _isLoadingSongs = false;
                 });
-            });
+            }, ct);
         }
 
         private void RefreshDisplaySongs()
