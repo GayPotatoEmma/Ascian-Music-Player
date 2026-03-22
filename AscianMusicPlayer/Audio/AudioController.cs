@@ -272,7 +272,7 @@ namespace AscianMusicPlayer.Audio
 
                 Plugin.Log.Information("Finished background metadata load");
 
-                if (Plugin.Settings.FetchLyricsOnline)
+                if (Plugin.Settings.FetchLyricsOnline && Plugin.Settings.ShowHasLyricsColumn)
                 {
                     await lyricsService.CheckLyricsAvailabilityInBackground(songs, ct);
                 }
