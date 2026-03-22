@@ -593,7 +593,6 @@ namespace AscianMusicPlayer.Audio
                 }
                 catch (AggregateException)
                 {
-                    // Ignore exceptions from task cancellation, they are expected
                 }
                 _metadataCts.Dispose();
                 _metadataCts = null;

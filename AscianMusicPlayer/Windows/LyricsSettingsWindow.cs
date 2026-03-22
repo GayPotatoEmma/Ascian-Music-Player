@@ -1,6 +1,10 @@
+using System;
+using System.IO;
 using System.Numerics;
 using System.Drawing.Text;
 using System.Linq;
+using System.Collections.Generic;
+using Microsoft.Win32;
 using Dalamud.Interface.Windowing;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Utility.Raii;
@@ -12,7 +16,17 @@ namespace AscianMusicPlayer.Windows
         private static readonly Vector4 SectionColor = new(0.2f, 0.8f, 1.0f, 1.0f);
         private readonly Plugin _plugin;
 
-        private string[] _allFontNames = [];
+        private string[] _fontFamilies = [];
+        private Dictionary<string, string[]> _fontStyles = [];
+
+        private string _selectedFontFamily = "Dalamud Default";
+        private string _selectedFontStyle = "Regular";
+
+        private static readonly string[] GameFonts =
+        [
+            "Game: Axis", "Game: Jupiter", "Game: Jupiter Numeric",
+            "Game: Meidinger", "Game: Meidinger Mid", "Game: Trump Gothic"
+        ];
 
         public LyricsSettingsWindow(Plugin plugin) : base("Lyrics Settings###AscianMusicPlayerLyricsSettings")
         {
@@ -21,29 +35,114 @@ namespace AscianMusicPlayer.Windows
             SizeCondition = ImGuiCond.Always;
             Flags = ImGuiWindowFlags.NoResize;
             LoadFonts();
+            InitFontSelection();
         }
 
         private void LoadFonts()
         {
             try
             {
-                var gameFonts = new[] { "Game: Axis", "Game: Jupiter", "Game: Jupiter Numeric", "Game: Meidinger", "Game: Meidinger Mid", "Game: Trump Gothic" };
-
                 using var installedFonts = new InstalledFontCollection();
-                var systemFonts = installedFonts.Families
+                var allNames = installedFonts.Families
                     .Select(f => f.Name)
                     .Where(n => !string.IsNullOrWhiteSpace(n))
-                    .OrderBy(n => n);
-
-                _allFontNames = new[] { "Dalamud Default" }
-                    .Concat(gameFonts)
-                    .Concat(systemFonts)
+                    .OrderBy(n => n)
                     .ToArray();
+
+                var baseNames = allNames
+                    .Where(n => !allNames.Any(other => other != n && n.StartsWith(other + " ")))
+                    .ToArray();
+
+                var stylesMap = new Dictionary<string, string[]>();
+                foreach (var baseName in baseNames)
+                {
+                    var styles = new List<string> { "Regular" };
+                    foreach (var name in allNames)
+                    {
+                        if (name != baseName && name.StartsWith(baseName + " "))
+                            styles.Add(name[(baseName.Length + 1)..]);
+                    }
+                    stylesMap[baseName] = [.. styles];
+                }
+
+                var registryFonts = GetRegistryFontEntries();
+                foreach (var baseName in baseNames)
+                {
+                    if (!stylesMap.TryGetValue(baseName, out var styles) || styles.Length <= 1)
+                        continue;
+
+                    var basePath = ResolveFontFromRegistry(registryFonts, baseName);
+                    var validStyles = new List<string> { "Regular" };
+
+                    foreach (var style in styles)
+                    {
+                        if (style == "Regular") continue;
+                        var combinedName = $"{baseName} {style}";
+                        var stylePath = ResolveFontFromRegistry(registryFonts, combinedName);
+                        if (!string.IsNullOrEmpty(stylePath) &&
+                            !string.Equals(stylePath, basePath, StringComparison.OrdinalIgnoreCase))
+                        {
+                            validStyles.Add(style);
+                        }
+                    }
+
+                    stylesMap[baseName] = [.. validStyles];
+                }
+
+                _fontFamilies = new[] { "Dalamud Default" }
+                    .Concat(GameFonts)
+                    .Concat(baseNames)
+                    .ToArray();
+                _fontStyles = stylesMap;
             }
             catch
             {
-                _allFontNames = ["Dalamud Default"];
+                _fontFamilies = ["Dalamud Default", .. GameFonts];
+                _fontStyles = [];
             }
+        }
+
+        private void InitFontSelection()
+        {
+            var stored = Plugin.Settings.LyricsSystemFontName;
+            if (string.IsNullOrEmpty(stored) || stored == "Dalamud Default")
+            {
+                _selectedFontFamily = "Dalamud Default";
+                _selectedFontStyle = "Regular";
+                return;
+            }
+
+            if (GameFonts.Contains(stored))
+            {
+                _selectedFontFamily = stored;
+                _selectedFontStyle = "Regular";
+                return;
+            }
+
+            var match = _fontStyles.Keys
+                .Where(k => stored == k || stored.StartsWith(k + " "))
+                .OrderByDescending(k => k.Length)
+                .FirstOrDefault();
+
+            if (match != null)
+            {
+                _selectedFontFamily = match;
+                _selectedFontStyle = stored == match ? "Regular" : stored[(match.Length + 1)..];
+            }
+            else
+            {
+                _selectedFontFamily = stored;
+                _selectedFontStyle = "Regular";
+            }
+        }
+
+        private string GetCombinedFontName()
+        {
+            if (_selectedFontFamily == "Dalamud Default" || GameFonts.Contains(_selectedFontFamily))
+                return _selectedFontFamily;
+            return _selectedFontStyle == "Regular"
+                ? _selectedFontFamily
+                : $"{_selectedFontFamily} {_selectedFontStyle}";
         }
 
         public override void Draw()
@@ -177,34 +276,50 @@ namespace AscianMusicPlayer.Windows
 
         private void DrawTextTab()
         {
-            using var itemWidth = ImRaii.ItemWidth(200);
-
             DrawSectionHeader("Font");
 
+            var availWidth = ImGui.GetContentRegionAvail().X;
+            _fontStyles.TryGetValue(_selectedFontFamily, out var currentStyles);
+            bool hasStyles = !GameFonts.Contains(_selectedFontFamily) && _selectedFontFamily != "Dalamud Default"
+                             && currentStyles != null && currentStyles.Length > 1;
+
             ImGui.Text("Font");
-
-            var currentFontName = Plugin.Settings.LyricsSystemFontName;
-            if (string.IsNullOrEmpty(currentFontName))
+            using (ImRaii.ItemWidth(availWidth))
             {
-                currentFontName = "Dalamud Default";
-            }
-
-            using (var combo = ImRaii.Combo("##LyricsFont", currentFontName))
-            {
+                using var combo = ImRaii.Combo("##LyricsFont", _selectedFontFamily);
                 if (combo)
                 {
-                    foreach (var fontName in _allFontNames)
+                    foreach (var family in _fontFamilies)
                     {
-                        bool isSelected = fontName == currentFontName;
-                        if (ImGui.Selectable(fontName, isSelected))
+                        bool isSelected = family == _selectedFontFamily;
+                        if (ImGui.Selectable(family, isSelected))
                         {
-                            Plugin.Settings.LyricsSystemFontName = fontName;
-                            _plugin.SaveSettings();
-                            _plugin.RebuildLyricsFont();
+                            _selectedFontFamily = family;
+                            _selectedFontStyle = "Regular";
+                            ApplyFontSelection();
                         }
-                        if (isSelected)
+                        if (isSelected) ImGui.SetItemDefaultFocus();
+                    }
+                }
+            }
+
+            if (hasStyles)
+            {
+                ImGui.Text("Style");
+                using (ImRaii.ItemWidth(availWidth))
+                {
+                    using var styleCombo = ImRaii.Combo("##LyricsFontStyle", _selectedFontStyle);
+                    if (styleCombo)
+                    {
+                        foreach (var style in currentStyles!)
                         {
-                            ImGui.SetItemDefaultFocus();
+                            bool isSelected = style == _selectedFontStyle;
+                            if (ImGui.Selectable(style, isSelected))
+                            {
+                                _selectedFontStyle = style;
+                                ApplyFontSelection();
+                            }
+                            if (isSelected) ImGui.SetItemDefaultFocus();
                         }
                     }
                 }
@@ -212,6 +327,8 @@ namespace AscianMusicPlayer.Windows
 
             ImGui.Spacing();
             ImGui.Spacing();
+
+            using var itemWidth = ImRaii.ItemWidth(availWidth);
 
             DrawSectionHeader("Font Colors");
 
@@ -296,6 +413,13 @@ namespace AscianMusicPlayer.Windows
             DrawTooltip("0.0 = Top, 0.5 = Center, 1.0 = Bottom");
         }
 
+        private void ApplyFontSelection()
+        {
+            Plugin.Settings.LyricsSystemFontName = GetCombinedFontName();
+            _plugin.SaveSettings();
+            _plugin.RebuildLyricsFont();
+        }
+
         private void DrawSyncTab()
         {
             var currentSong = _plugin.MainWindow.GetCurrentSong();
@@ -374,6 +498,61 @@ namespace AscianMusicPlayer.Windows
             var b = (uint)(color.Z * 255);
             var a = (uint)(color.W * 255);
             return r | (g << 8) | (b << 16) | (a << 24);
+        }
+
+        private static List<(string DisplayName, string FilePath)> GetRegistryFontEntries()
+        {
+            var entries = new List<(string DisplayName, string FilePath)>();
+            var fontsFolder = Environment.GetFolderPath(Environment.SpecialFolder.Fonts);
+            var localFontsFolder = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "Microsoft", "Windows", "Fonts");
+
+            void ScanRegistry(RegistryKey? hive, string subKey, string baseFolder)
+            {
+                using var key = hive?.OpenSubKey(subKey);
+                if (key == null) return;
+                foreach (var valueName in key.GetValueNames())
+                {
+                    var displayName = valueName
+                        .Replace(" (TrueType)", "")
+                        .Replace(" (OpenType)", "")
+                        .Replace(" (All Res)", "")
+                        .Trim();
+
+                    var fileName = key.GetValue(valueName) as string;
+                    if (string.IsNullOrEmpty(fileName)) continue;
+
+                    if (!Path.IsPathRooted(fileName))
+                        fileName = Path.Combine(baseFolder, fileName);
+
+                    if (File.Exists(fileName))
+                        entries.Add((displayName, fileName));
+                }
+            }
+
+            ScanRegistry(Registry.LocalMachine, @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts", fontsFolder);
+            ScanRegistry(Registry.LocalMachine, @"SOFTWARE\Microsoft\Windows\CurrentVersion\Fonts", fontsFolder);
+            ScanRegistry(Registry.CurrentUser, @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts", localFontsFolder);
+
+            return entries;
+        }
+
+        private static string? ResolveFontFromRegistry(List<(string DisplayName, string FilePath)> entries, string fontName)
+        {
+            foreach (var (displayName, filePath) in entries)
+            {
+                if (displayName.Equals(fontName, StringComparison.OrdinalIgnoreCase))
+                    return filePath;
+            }
+
+            foreach (var (displayName, filePath) in entries)
+            {
+                if (fontName.StartsWith(displayName, StringComparison.OrdinalIgnoreCase))
+                    return filePath;
+            }
+
+            return null;
         }
     }
 }

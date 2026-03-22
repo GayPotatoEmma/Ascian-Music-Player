@@ -84,7 +84,6 @@ namespace AscianMusicPlayer.Windows
                 }
                 catch (AggregateException)
                 {
-                    // Task was cancelled, expected
                 }
                 _loadSongsCts.Dispose();
                 _loadSongsCts = null;
