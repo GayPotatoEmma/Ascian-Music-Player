@@ -1,10 +1,8 @@
 using System;
-using System.IO;
 using System.Numerics;
 using System.Drawing.Text;
 using System.Linq;
 using System.Collections.Generic;
-using Microsoft.Win32;
 using Dalamud.Interface.Windowing;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface.Utility.Raii;
@@ -49,23 +47,35 @@ namespace AscianMusicPlayer.Windows
                     .OrderBy(n => n)
                     .ToArray();
 
+                var nameSet = new HashSet<string>(allNames, StringComparer.Ordinal);
                 var baseNames = allNames
-                    .Where(n => !allNames.Any(other => other != n && n.StartsWith(other + " ")))
+                    .Where(n =>
+                    {
+                        int idx = n.IndexOf(' ');
+                        while (idx >= 0)
+                        {
+                            if (nameSet.Contains(n[..idx]))
+                                return false;
+                            idx = n.IndexOf(' ', idx + 1);
+                        }
+                        return true;
+                    })
                     .ToArray();
 
                 var stylesMap = new Dictionary<string, string[]>();
                 foreach (var baseName in baseNames)
                 {
                     var styles = new List<string> { "Regular" };
+                    var prefix = baseName + " ";
                     foreach (var name in allNames)
                     {
-                        if (name != baseName && name.StartsWith(baseName + " "))
-                            styles.Add(name[(baseName.Length + 1)..]);
+                        if (name.StartsWith(prefix, StringComparison.Ordinal))
+                            styles.Add(name[prefix.Length..]);
                     }
                     stylesMap[baseName] = [.. styles];
                 }
 
-                var registryFonts = GetRegistryFontEntries();
+                var registryFonts = Plugin.GetRegistryFontEntries();
                 foreach (var baseName in baseNames)
                 {
                     if (!stylesMap.TryGetValue(baseName, out var styles) || styles.Length <= 1)
@@ -500,45 +510,7 @@ namespace AscianMusicPlayer.Windows
             return r | (g << 8) | (b << 16) | (a << 24);
         }
 
-        private static List<(string DisplayName, string FilePath)> GetRegistryFontEntries()
-        {
-            var entries = new List<(string DisplayName, string FilePath)>();
-            var fontsFolder = Environment.GetFolderPath(Environment.SpecialFolder.Fonts);
-            var localFontsFolder = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "Microsoft", "Windows", "Fonts");
-
-            void ScanRegistry(RegistryKey? hive, string subKey, string baseFolder)
-            {
-                using var key = hive?.OpenSubKey(subKey);
-                if (key == null) return;
-                foreach (var valueName in key.GetValueNames())
-                {
-                    var displayName = valueName
-                        .Replace(" (TrueType)", "")
-                        .Replace(" (OpenType)", "")
-                        .Replace(" (All Res)", "")
-                        .Trim();
-
-                    var fileName = key.GetValue(valueName) as string;
-                    if (string.IsNullOrEmpty(fileName)) continue;
-
-                    if (!Path.IsPathRooted(fileName))
-                        fileName = Path.Combine(baseFolder, fileName);
-
-                    if (File.Exists(fileName))
-                        entries.Add((displayName, fileName));
-                }
-            }
-
-            ScanRegistry(Registry.LocalMachine, @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts", fontsFolder);
-            ScanRegistry(Registry.LocalMachine, @"SOFTWARE\Microsoft\Windows\CurrentVersion\Fonts", fontsFolder);
-            ScanRegistry(Registry.CurrentUser, @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts", localFontsFolder);
-
-            return entries;
-        }
-
-        private static string? ResolveFontFromRegistry(List<(string DisplayName, string FilePath)> entries, string fontName)
+        private static string? ResolveFontFromRegistry(IReadOnlyList<(string DisplayName, string FilePath)> entries, string fontName)
         {
             foreach (var (displayName, filePath) in entries)
             {

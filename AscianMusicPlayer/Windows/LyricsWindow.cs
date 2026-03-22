@@ -143,7 +143,7 @@ namespace AscianMusicPlayer.Windows
                     {
                         fontPush = ImRaii.PushFont(font.ImFont);
                         var baseFontSize = _plugin.GetLyricsFontBaseSize();
-                        var targetSize = 30.0f * scale;
+                        var targetSize = Plugin.LyricsFontBaseSize * scale;
                         var fontScale = targetSize / baseFontSize;
                         ImGui.SetWindowFontScale(fontScale);
                     }

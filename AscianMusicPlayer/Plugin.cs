@@ -53,6 +53,41 @@ namespace AscianMusicPlayer
         public LyricsSettingsWindow LyricsSettingsWindow { get; private set; }
         private IDtrBarEntry? _dtrEntry;
 
+        internal const float LyricsFontBaseSize = 30.0f;
+
+        private static readonly ushort[] LyricsGlyphRanges = new FluentGlyphRangeBuilder()
+            .With(UnicodeRanges.BasicLatin)
+            .With(UnicodeRanges.Latin1Supplement)
+            .With(UnicodeRanges.LatinExtendedA)
+            .With(UnicodeRanges.LatinExtendedB)
+            .With(UnicodeRanges.LatinExtendedAdditional)
+            .With(UnicodeRanges.Cyrillic)
+            .With(UnicodeRanges.CyrillicSupplement)
+            .With(UnicodeRanges.GreekandCoptic)
+            .With(UnicodeRanges.GreekExtended)
+            .With(UnicodeRanges.GeneralPunctuation)
+            .With(UnicodeRanges.CjkUnifiedIdeographs)
+            .With(UnicodeRanges.CjkSymbolsandPunctuation)
+            .With(UnicodeRanges.CjkCompatibilityIdeographs)
+            .With(UnicodeRanges.Hiragana)
+            .With(UnicodeRanges.Katakana)
+            .With(UnicodeRanges.KatakanaPhoneticExtensions)
+            .With(UnicodeRanges.HangulSyllables)
+            .With(UnicodeRanges.HangulJamo)
+            .With(UnicodeRanges.HangulCompatibilityJamo)
+            .With(UnicodeRanges.Thai)
+            .With(UnicodeRanges.Arabic)
+            .With(UnicodeRanges.Hebrew)
+            .With(UnicodeRanges.Devanagari)
+            .With(UnicodeRanges.HalfwidthandFullwidthForms)
+            .With(UnicodeRanges.LetterlikeSymbols)
+            .With(UnicodeRanges.MiscellaneousSymbols)
+            .With(UnicodeRanges.SuperscriptsandSubscripts)
+            .Build();
+
+        private static List<(string DisplayName, string FilePath)>? _registryFontsCache;
+        private static readonly Dictionary<string, (string? Path, int FaceIndex)> _fontPathCache = new(StringComparer.OrdinalIgnoreCase);
+
         private IFontAtlas? _lyricsFontAtlas;
         private IFontHandle? _lyricsFontHandle;
 
@@ -467,60 +502,23 @@ namespace AscianMusicPlayer
                 _lyricsFontAtlas?.Dispose();
 
                 var maxScale = Math.Max(Settings.LyricsCurrentLineScale, Settings.LyricsNextLineScale);
-                var fontSize = 30.0f * maxScale;
+                var fontSize = LyricsFontBaseSize * maxScale;
 
                 _lyricsFontAtlas = PluginInterface.UiBuilder.CreateFontAtlas(FontAtlasAutoRebuildMode.Async);
 
-                var fontName = Settings.LyricsSystemFontName;
-                if (string.IsNullOrEmpty(fontName))
-                {
-                    fontName = "Dalamud Default";
-                }
-
+                var fontName = string.IsNullOrEmpty(Settings.LyricsSystemFontName) ? "Dalamud Default" : Settings.LyricsSystemFontName;
 
                 string? resolvedFontPath = null;
                 int resolvedFaceIndex = 0;
                 if (fontName != "Dalamud Default" && !fontName.StartsWith("Game: "))
-                {
                     (resolvedFontPath, resolvedFaceIndex) = GetSystemFontPath(fontName);
-                }
 
                 _lyricsFontHandle = _lyricsFontAtlas.NewDelegateFontHandle(e => e.OnPreBuild(tk =>
                 {
-                    var glyphRanges = new FluentGlyphRangeBuilder()
-                        .With(UnicodeRanges.BasicLatin)
-                        .With(UnicodeRanges.Latin1Supplement)
-                        .With(UnicodeRanges.LatinExtendedA)
-                        .With(UnicodeRanges.LatinExtendedB)
-                        .With(UnicodeRanges.LatinExtendedAdditional)
-                        .With(UnicodeRanges.Cyrillic)
-                        .With(UnicodeRanges.CyrillicSupplement)
-                        .With(UnicodeRanges.GreekandCoptic)
-                        .With(UnicodeRanges.GreekExtended)
-                        .With(UnicodeRanges.GeneralPunctuation)
-                        .With(UnicodeRanges.CjkUnifiedIdeographs)
-                        .With(UnicodeRanges.CjkSymbolsandPunctuation)
-                        .With(UnicodeRanges.CjkCompatibilityIdeographs)
-                        .With(UnicodeRanges.Hiragana)
-                        .With(UnicodeRanges.Katakana)
-                        .With(UnicodeRanges.KatakanaPhoneticExtensions)
-                        .With(UnicodeRanges.HangulSyllables)
-                        .With(UnicodeRanges.HangulJamo)
-                        .With(UnicodeRanges.HangulCompatibilityJamo)
-                        .With(UnicodeRanges.Thai)
-                        .With(UnicodeRanges.Arabic)
-                        .With(UnicodeRanges.Hebrew)
-                        .With(UnicodeRanges.Devanagari)
-                        .With(UnicodeRanges.HalfwidthandFullwidthForms)
-                        .With(UnicodeRanges.LetterlikeSymbols)
-                        .With(UnicodeRanges.MiscellaneousSymbols)
-                        .With(UnicodeRanges.SuperscriptsandSubscripts)
-                        .Build();
-
                     switch (fontName)
                     {
                         case "Dalamud Default":
-                            tk.AddDalamudDefaultFont(fontSize, glyphRanges);
+                            tk.AddDalamudDefaultFont(fontSize, LyricsGlyphRanges);
                             break;
                         case "Game: Axis":
                             tk.AddGameGlyphs(new GameFontStyle(GameFontFamily.Axis, fontSize), null, null);
@@ -541,14 +539,10 @@ namespace AscianMusicPlayer
                             tk.AddGameGlyphs(new GameFontStyle(GameFontFamily.TrumpGothic, fontSize), null, null);
                             break;
                         default:
-                            if (!string.IsNullOrEmpty(resolvedFontPath) && File.Exists(resolvedFontPath))
-                            {
-                                tk.AddFontFromFile(resolvedFontPath, new SafeFontConfig { SizePx = fontSize, FontNo = resolvedFaceIndex, GlyphRanges = glyphRanges });
-                            }
+                            if (resolvedFontPath != null)
+                                tk.AddFontFromFile(resolvedFontPath, new SafeFontConfig { SizePx = fontSize, FontNo = resolvedFaceIndex, GlyphRanges = LyricsGlyphRanges });
                             else
-                            {
-                                tk.AddDalamudDefaultFont(fontSize, glyphRanges);
-                            }
+                                tk.AddDalamudDefaultFont(fontSize, LyricsGlyphRanges);
                             break;
                     }
                 }));
@@ -561,53 +555,32 @@ namespace AscianMusicPlayer
 
         private static (string? Path, int FaceIndex) GetSystemFontPath(string fontName)
         {
+            if (_fontPathCache.TryGetValue(fontName, out var cached))
+                return cached;
+
+            var result = ResolveSystemFontPath(fontName);
+            _fontPathCache[fontName] = result;
+            return result;
+        }
+
+        private static (string? Path, int FaceIndex) ResolveSystemFontPath(string fontName)
+        {
             try
             {
+                var entries = GetRegistryFontEntries();
+
+                foreach (var (displayName, filePath) in entries)
+                    if (displayName.Equals(fontName, StringComparison.OrdinalIgnoreCase))
+                        return (filePath, 0);
+
+                foreach (var (displayName, filePath) in entries)
+                    if (fontName.StartsWith(displayName, StringComparison.OrdinalIgnoreCase))
+                        return (filePath, 0);
+
                 var fontsFolder = Environment.GetFolderPath(Environment.SpecialFolder.Fonts);
                 var localFontsFolder = Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                     "Microsoft", "Windows", "Fonts");
-
-                var registryEntries = new List<(string DisplayName, string FilePath)>();
-
-                void ScanRegistry(Microsoft.Win32.RegistryKey? hive, string subKey, string baseFolder)
-                {
-                    using var key = hive?.OpenSubKey(subKey);
-                    if (key == null) return;
-                    foreach (var valueName in key.GetValueNames())
-                    {
-                        var displayName = valueName
-                            .Replace(" (TrueType)", "")
-                            .Replace(" (OpenType)", "")
-                            .Replace(" (All Res)", "")
-                            .Trim();
-
-                        var fileName = key.GetValue(valueName) as string;
-                        if (string.IsNullOrEmpty(fileName)) continue;
-
-                        if (!Path.IsPathRooted(fileName))
-                            fileName = Path.Combine(baseFolder, fileName);
-
-                        if (File.Exists(fileName))
-                            registryEntries.Add((displayName, fileName));
-                    }
-                }
-
-                ScanRegistry(Microsoft.Win32.Registry.LocalMachine, @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts", fontsFolder);
-                ScanRegistry(Microsoft.Win32.Registry.LocalMachine, @"SOFTWARE\Microsoft\Windows\CurrentVersion\Fonts", fontsFolder);
-                ScanRegistry(Microsoft.Win32.Registry.CurrentUser, @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts", localFontsFolder);
-
-                foreach (var (displayName, filePath) in registryEntries)
-                {
-                    if (displayName.Equals(fontName, StringComparison.OrdinalIgnoreCase))
-                        return (filePath, 0);
-                }
-
-                foreach (var (displayName, filePath) in registryEntries)
-                {
-                    if (fontName.StartsWith(displayName, StringComparison.OrdinalIgnoreCase))
-                        return (filePath, 0);
-                }
 
                 foreach (var folder in new[] { fontsFolder, localFontsFolder })
                 {
@@ -637,6 +610,48 @@ namespace AscianMusicPlayer
             }
         }
 
+        internal static IReadOnlyList<(string DisplayName, string FilePath)> GetRegistryFontEntries()
+        {
+            if (_registryFontsCache != null)
+                return _registryFontsCache;
+
+            var entries = new List<(string DisplayName, string FilePath)>();
+            var fontsFolder = Environment.GetFolderPath(Environment.SpecialFolder.Fonts);
+            var localFontsFolder = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "Microsoft", "Windows", "Fonts");
+
+            void ScanRegistry(Microsoft.Win32.RegistryKey? hive, string subKey, string baseFolder)
+            {
+                using var key = hive?.OpenSubKey(subKey);
+                if (key == null) return;
+                foreach (var valueName in key.GetValueNames())
+                {
+                    var displayName = valueName
+                        .Replace(" (TrueType)", "")
+                        .Replace(" (OpenType)", "")
+                        .Replace(" (All Res)", "")
+                        .Trim();
+
+                    var fileName = key.GetValue(valueName) as string;
+                    if (string.IsNullOrEmpty(fileName)) continue;
+
+                    if (!Path.IsPathRooted(fileName))
+                        fileName = Path.Combine(baseFolder, fileName);
+
+                    if (File.Exists(fileName))
+                        entries.Add((displayName, fileName));
+                }
+            }
+
+            ScanRegistry(Microsoft.Win32.Registry.LocalMachine, @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts", fontsFolder);
+            ScanRegistry(Microsoft.Win32.Registry.LocalMachine, @"SOFTWARE\Microsoft\Windows\CurrentVersion\Fonts", fontsFolder);
+            ScanRegistry(Microsoft.Win32.Registry.CurrentUser, @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts", localFontsFolder);
+
+            _registryFontsCache = entries;
+            return _registryFontsCache;
+        }
+
         public void RebuildLyricsFont()
         {
             BuildLyricsFont();
@@ -650,7 +665,7 @@ namespace AscianMusicPlayer
         public float GetLyricsFontBaseSize()
         {
             var maxScale = Math.Max(Settings.LyricsCurrentLineScale, Settings.LyricsNextLineScale);
-            return 30.0f * maxScale;
+            return LyricsFontBaseSize * maxScale;
         }
 
         private void InitializeDtr()
