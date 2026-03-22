@@ -13,7 +13,7 @@
     <AssemblyVersion>1.2.0.0</AssemblyVersion>
 	<Punchline>Even the Ascians needed some tunes.</Punchline>
     <Description>A music player to play your own music files from within the game.</Description>
-	<Tags>music</Tags>
+	<Tags>music, amp</Tags>
   </PropertyGroup>
 
   <ItemGroup>
