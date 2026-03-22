@@ -286,6 +286,38 @@ namespace AscianMusicPlayer.Data
             return result != null ? Convert.ToInt32(result) : 0;
         }
 
+        public Dictionary<string, int> GetAllLyricsOffsets(List<string> filePaths)
+        {
+            var result = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            if (filePaths.Count == 0) return result;
+
+            using var connection = CreateConnection();
+            connection.Open();
+
+            const int chunkSize = 900;
+            for (int offset = 0; offset < filePaths.Count; offset += chunkSize)
+            {
+                var chunk = filePaths.GetRange(offset, Math.Min(chunkSize, filePaths.Count - offset));
+                using var command = connection.CreateCommand();
+                var paramNames = new List<string>();
+                for (int i = 0; i < chunk.Count; i++)
+                {
+                    var paramName = $"@p{i}";
+                    paramNames.Add(paramName);
+                    command.Parameters.AddWithValue(paramName, chunk[i]);
+                }
+
+                command.CommandText = $"SELECT SongPath, LyricsOffsetMs FROM SongSettings WHERE SongPath IN ({string.Join(",", paramNames)})";
+                using var reader = command.ExecuteReader();
+                while (reader.Read())
+                {
+                    result[reader.GetString(0)] = reader.GetInt32(1);
+                }
+            }
+
+            return result;
+        }
+
         public void SetLyricsOffset(string songPath, int offsetMs)
         {
             using var connection = CreateConnection();

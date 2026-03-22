@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using System.Threading;
+using System.Threading.Tasks;
 using AscianMusicPlayer.Audio;
 using Dalamud.Interface;
 using Dalamud.Interface.Components;
@@ -41,6 +43,9 @@ namespace AscianMusicPlayer.Windows
         private string _searchArtist = string.Empty;
         private string _searchAlbum = string.Empty;
         private List<Song> _filteredSongs = new();
+
+        private bool _isLoadingSongs;
+        private int _loadGeneration;
 
         public MainWindow(Plugin plugin) : base("Ascian Music Player###AscianMusicPlayer")
         {
@@ -126,18 +131,40 @@ namespace AscianMusicPlayer.Windows
 
         public void LoadSongs()
         {
-            _songs = AudioController.LoadSongs(Plugin.Settings.MediaFolder);
-            _plugin.AudioController.LoadMetadataInBackground(_songs, _plugin.Database);
-
-            _mediaFolder = Plugin.Settings.MediaFolder;
-
-            foreach (var song in _songs)
-            {
-                song.LyricsOffsetMs = _plugin.Database.GetLyricsOffset(song.FilePath);
-            }
-
-            RefreshDisplaySongs();
+            var generation = System.Threading.Interlocked.Increment(ref _loadGeneration);
+            _isLoadingSongs = true;
             _sortDirty = true;
+
+            Task.Run(() =>
+            {
+                var mediaFolder = Plugin.Settings.MediaFolder;
+                var songs = AudioController.LoadSongs(mediaFolder);
+
+                if (generation != _loadGeneration) return;
+
+                var filePaths = songs.Select(s => s.FilePath).ToList();
+                var lyricsOffsets = _plugin.Database.GetAllLyricsOffsets(filePaths);
+
+                foreach (var song in songs)
+                {
+                    if (lyricsOffsets.TryGetValue(song.FilePath, out var offset))
+                        song.LyricsOffsetMs = offset;
+                }
+
+                if (generation != _loadGeneration) return;
+
+                Plugin.Framework.RunOnFrameworkThread(() =>
+                {
+                    if (generation != _loadGeneration) return;
+
+                    _songs = songs;
+                    _mediaFolder = mediaFolder;
+                    _plugin.AudioController.LoadMetadataInBackground(songs, _plugin.Database);
+                    RefreshDisplaySongs();
+                    _sortDirty = true;
+                    _isLoadingSongs = false;
+                });
+            });
         }
 
         private void RefreshDisplaySongs()
@@ -740,6 +767,15 @@ namespace AscianMusicPlayer.Windows
                     "No media folder set!",
                     new Vector4(1, 0.3f, 0.3f, 1),
                     "Please set a media folder in Settings to load your music.");
+                return;
+            }
+
+            if (_isLoadingSongs)
+            {
+                DrawCenteredError(
+                    "Scanning library...",
+                    new Vector4(0.2f, 0.8f, 1.0f, 1.0f),
+                    Plugin.Settings.MediaFolder);
                 return;
             }
 
