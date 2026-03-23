@@ -9,7 +9,7 @@ using Dalamud.Utility;
 
 namespace AscianMusicPlayer.Windows
 {
-    public class FirstLaunchWindow : Window
+    public class FirstLaunchWindow : PluginWindow
     {
         private readonly Plugin _plugin;
         private readonly FileDialogManager _fileDialogManager;
@@ -41,7 +41,7 @@ namespace AscianMusicPlayer.Windows
         public FirstLaunchWindow(Plugin plugin) : base("Welcome to Ascian Music Player!###AscianMusicPlayerFirstLaunch")
         {
             _plugin = plugin;
-            var height = Util.IsWine() ? 455 : 420;
+            var height = Util.IsWine() ? 485 : 450;
             this.Size = new Vector2(500, height);
             this.SizeCondition = ImGuiCond.Appearing;
             this.Flags = ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoCollapse;
@@ -84,11 +84,18 @@ namespace AscianMusicPlayer.Windows
                 }, _mediaFolderInput);
             }
 
+            if (!string.IsNullOrEmpty(_mediaFolderInput) && !Directory.Exists(_mediaFolderInput))
+            {
+                ImGui.Spacing();
+                using var color = ImRaii.PushColor(ImGuiCol.Text, new Vector4(1.0f, 0.3f, 0.3f, 1.0f));
+                ImGui.TextWrapped("Invalid folder path. Please select a valid media folder to continue.");
+            }
+
             if (Util.IsWine())
             {
-                ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1.0f, 0.8f, 0.0f, 1.0f));
+                ImGui.Spacing();
+                using var color = ImRaii.PushColor(ImGuiCol.Text, new Vector4(1.0f, 0.8f, 0.0f, 1.0f));
                 ImGui.TextWrapped("You appear to be running the game under Wine. This may cause playback issues with 24-bit audio files.");
-                ImGui.PopStyleColor();
             }
 
             ImGui.Spacing();
@@ -123,7 +130,7 @@ namespace AscianMusicPlayer.Windows
 
             if (_bindToGameVolumeInput)
             {
-                ImGui.Indent();
+                using var indent = ImRaii.PushIndent();
                 ImGui.Text("Music Channel:");
                 ImGui.SetNextItemWidth(200);
                 ImGui.Combo("##MusicChannel", ref _selectedChannel, _channelNames, _channelNames.Length);
@@ -131,7 +138,6 @@ namespace AscianMusicPlayer.Windows
                 {
                     ImGui.SetTooltip("Select which game audio channel to bind the player volume to.");
                 }
-                ImGui.Unindent();
             }
 
             ImGui.Spacing();
@@ -201,23 +207,12 @@ namespace AscianMusicPlayer.Windows
 
             ImGui.Spacing();
 
-            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.7f, 0.7f, 0.7f, 1.0f));
-            var disclaimerText = "More settings and options are available in the Settings window.";
-            var disclaimerSize = ImGui.CalcTextSize(disclaimerText);
-            ImGui.SetCursorPosX((availableWidth - disclaimerSize.X) / 2f);
-            ImGui.Text(disclaimerText);
-            ImGui.PopStyleColor();
-
-            ImGui.Spacing();
-
-            if (!canFinish && !string.IsNullOrEmpty(_mediaFolderInput))
+            using (var color = ImRaii.PushColor(ImGuiCol.Text, new Vector4(0.7f, 0.7f, 0.7f, 1.0f)))
             {
-                ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1, 0.3f, 0.3f, 1));
-                var warningText = "The specified folder does not exist.";
-                var warningSize = ImGui.CalcTextSize(warningText);
-                ImGui.SetCursorPosX((availableWidth - warningSize.X) / 2f);
-                ImGui.Text(warningText);
-                ImGui.PopStyleColor();
+                var disclaimerText = "More settings and options are available in the Settings window.";
+                var disclaimerSize = ImGui.CalcTextSize(disclaimerText);
+                ImGui.SetCursorPosX((availableWidth - disclaimerSize.X) / 2f);
+                ImGui.Text(disclaimerText);
             }
         }
     }

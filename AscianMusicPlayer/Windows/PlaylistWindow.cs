@@ -8,7 +8,7 @@ using Dalamud.Interface.Utility.Raii;
 
 namespace AscianMusicPlayer.Windows
 {
-    public class PlaylistWindow : Window
+    public class PlaylistWindow : PluginWindow
     {
         private readonly Plugin _plugin;
         private Guid? _selectedPlaylistId;
@@ -48,7 +48,6 @@ namespace AscianMusicPlayer.Windows
                 if (!string.IsNullOrWhiteSpace(_newPlaylistName))
                 {
                     _plugin.PlaylistManager.CreatePlaylist(_newPlaylistName.Trim());
-                    _plugin.SaveSettings();
                     _newPlaylistName = string.Empty;
                 }
             }
@@ -93,7 +92,6 @@ namespace AscianMusicPlayer.Windows
                                             if (!string.IsNullOrWhiteSpace(_renamePlaylistName))
                                             {
                                                 _plugin.PlaylistManager.RenamePlaylist(playlist.Id, _renamePlaylistName.Trim());
-                                                _plugin.SaveSettings();
                                             }
                                             _renamingPlaylistId = null;
                                             _renamePlaylistName = string.Empty;
@@ -108,7 +106,7 @@ namespace AscianMusicPlayer.Windows
                                     else
                                     {
                                         ImGui.AlignTextToFramePadding();
-                                        ImGui.Text($"{playlist.Name} ({playlist.SongPaths.Count} songs)");
+                                        ImGui.Text($"{playlist.Name} ({playlist.SongCount} songs)");
                                     }
 
                                     ImGui.TableNextColumn();
@@ -169,7 +167,6 @@ namespace AscianMusicPlayer.Windows
                             if (playlistToDelete.HasValue)
                             {
                                 _plugin.PlaylistManager.DeletePlaylist(playlistToDelete.Value);
-                                _plugin.SaveSettings();
                                 if (_selectedPlaylistId == playlistToDelete.Value)
                                 {
                                     _selectedPlaylistId = null;

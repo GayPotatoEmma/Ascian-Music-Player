@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using System.Threading;
+using System.Threading.Tasks;
 using AscianMusicPlayer.Audio;
 using Dalamud.Interface;
 using Dalamud.Interface.Components;
@@ -12,7 +14,7 @@ using Dalamud.Utility;
 
 namespace AscianMusicPlayer.Windows
 {
-    public class MainWindow : Window
+    public class MainWindow : PluginWindow
     {
         private enum RepeatMode
         {
@@ -42,9 +44,14 @@ namespace AscianMusicPlayer.Windows
         private string _searchAlbum = string.Empty;
         private List<Song> _filteredSongs = new();
 
+        private bool _isLoadingSongs;
+        private int _loadGeneration;
+        private CancellationTokenSource? _loadSongsCts;
+        private Task? _loadSongsTask;
+
         public MainWindow(Plugin plugin) : base("Ascian Music Player###AscianMusicPlayer")
         {
-            this._plugin = plugin;
+            _plugin = plugin;
             this.Size = new Vector2(500, 400);
             this.SizeConstraints = new WindowSizeConstraints
             {
@@ -67,6 +74,21 @@ namespace AscianMusicPlayer.Windows
         {
             _plugin.AudioController.SongEnded -= OnSongEnded;
             _plugin.AudioController.SongChanged -= OnSongChanged;
+
+            if (_loadSongsCts != null)
+            {
+                _loadSongsCts.Cancel();
+                try
+                {
+                    _loadSongsTask?.Wait(TimeSpan.FromSeconds(5));
+                }
+                catch (AggregateException)
+                {
+                }
+                _loadSongsCts.Dispose();
+                _loadSongsCts = null;
+                _loadSongsTask = null;
+            }
         }
 
         private void OnSongChanged(object? sender, Song song)
@@ -126,10 +148,45 @@ namespace AscianMusicPlayer.Windows
 
         public void LoadSongs()
         {
-            _songs = AudioController.LoadSongs(Plugin.Settings.MediaFolder);
-            _mediaFolder = Plugin.Settings.MediaFolder;
-            RefreshDisplaySongs();
+            var generation = System.Threading.Interlocked.Increment(ref _loadGeneration);
+            _isLoadingSongs = true;
             _sortDirty = true;
+
+            _loadSongsCts?.Cancel();
+            _loadSongsCts?.Dispose();
+            _loadSongsCts = new CancellationTokenSource();
+            var ct = _loadSongsCts.Token;
+
+            _loadSongsTask = Task.Run(() =>
+            {
+                var mediaFolder = Plugin.Settings.MediaFolder;
+                var songs = AudioController.LoadSongs(mediaFolder);
+
+                if (generation != _loadGeneration || ct.IsCancellationRequested) return;
+
+                var filePaths = songs.Select(s => s.FilePath).ToList();
+                var lyricsOffsets = _plugin.Database.GetAllLyricsOffsets(filePaths);
+
+                foreach (var song in songs)
+                {
+                    if (lyricsOffsets.TryGetValue(song.FilePath, out var offset))
+                        song.LyricsOffsetMs = offset;
+                }
+
+                if (generation != _loadGeneration || ct.IsCancellationRequested) return;
+
+                Plugin.Framework.RunOnFrameworkThread(() =>
+                {
+                    if (generation != _loadGeneration || ct.IsCancellationRequested) return;
+
+                    _songs = songs;
+                    _mediaFolder = mediaFolder;
+                    _plugin.AudioController.LoadMetadataInBackground(songs, _plugin.Database, _plugin.LyricsService);
+                    RefreshDisplaySongs();
+                    _sortDirty = true;
+                    _isLoadingSongs = false;
+                });
+            }, ct);
         }
 
         private void RefreshDisplaySongs()
@@ -149,8 +206,8 @@ namespace AscianMusicPlayer.Windows
 
         private void ApplySearchFilter()
         {
-            if (string.IsNullOrWhiteSpace(_searchTitle) && 
-                string.IsNullOrWhiteSpace(_searchArtist) && 
+            if (string.IsNullOrWhiteSpace(_searchTitle) &&
+                string.IsNullOrWhiteSpace(_searchArtist) &&
                 string.IsNullOrWhiteSpace(_searchAlbum))
             {
                 _filteredSongs = _displaySongs;
@@ -391,15 +448,55 @@ namespace AscianMusicPlayer.Windows
                 _plugin.MiniPlayerWindow.Toggle();
             }
 
+            using (var lyricsMenu = ImRaii.Menu("Lyrics"))
+            {
+                if (lyricsMenu)
+                {
+                    if (ImGui.MenuItem("Lyrics Overlay"))
+                    {
+                        _plugin.LyricsWindow.Toggle();
+                    }
+
+                    if (ImGui.MenuItem("Lyrics Settings"))
+                    {
+                        _plugin.LyricsSettingsWindow.Toggle();
+                    }
+                }
+            }
+
             DrawColumnsMenu();
         }
 
         private void DrawPlaybackMenu()
         {
-            using var menu = ImRaii.Menu("Playback");
+            using var menu = ImRaii.Menu("Playlists");
             if (!menu) return;
 
-            DrawPlaylistMenu();
+            if (ImGui.MenuItem("Manage Playlists"))
+            {
+                _plugin.PlaylistWindow.Toggle();
+            }
+
+            ImGui.Separator();
+
+            if (ImGui.MenuItem("All Songs", "", !_activePlaylistId.HasValue))
+            {
+                SetActivePlaylist(null);
+            }
+
+            var playlists = _plugin.PlaylistManager.Playlists.ToList();
+            if (playlists.Count > 0)
+            {
+                ImGui.Separator();
+                foreach (var playlist in playlists)
+                {
+                    bool isActive = _activePlaylistId.HasValue && _activePlaylistId.Value == playlist.Id;
+                    if (ImGui.MenuItem($"{playlist.Name} ({playlist.SongCount} songs)", "", isActive))
+                    {
+                        SetActivePlaylist(playlist.Id);
+                    }
+                }
+            }
         }
 
         private void DrawToolsMenu()
@@ -429,38 +526,6 @@ namespace AscianMusicPlayer.Windows
             }
         }
 
-        private void DrawPlaylistMenu()
-        {
-            using var menu = ImRaii.Menu("Playlists");
-            if (!menu) return;
-
-            if (ImGui.MenuItem("Manage Playlists"))
-            {
-                _plugin.PlaylistWindow.Toggle();
-            }
-
-            ImGui.Separator();
-
-            if (ImGui.MenuItem("All Songs", "", !_activePlaylistId.HasValue))
-            {
-                SetActivePlaylist(null);
-            }
-
-            var playlists = _plugin.PlaylistManager.Playlists.ToList();
-            if (playlists.Count > 0)
-            {
-                ImGui.Separator();
-                foreach (var playlist in playlists)
-                {
-                    bool isActive = _activePlaylistId.HasValue && _activePlaylistId.Value == playlist.Id;
-                    if (ImGui.MenuItem($"{playlist.Name} ({playlist.SongPaths.Count} songs)", "", isActive))
-                    {
-                        SetActivePlaylist(playlist.Id);
-                    }
-                }
-            }
-        }
-
         private void DrawColumnsMenu()
         {
             using var menu = ImRaii.Menu("Columns");
@@ -468,6 +533,11 @@ namespace AscianMusicPlayer.Windows
 
             ImGui.Text("Visibility:");
             ImGui.Separator();
+
+            if (ImGui.Checkbox("Track #", ref Plugin.Settings.ShowTrackNumberColumn))
+            {
+                Plugin.Settings.Save();
+            }
 
             if (ImGui.Checkbox("Artist", ref Plugin.Settings.ShowArtistColumn))
             {
@@ -483,9 +553,14 @@ namespace AscianMusicPlayer.Windows
             {
                 Plugin.Settings.Save();
             }
+
+            if (ImGui.Checkbox("Lyrics", ref Plugin.Settings.ShowHasLyricsColumn))
+            {
+                Plugin.Settings.Save();
+            }
         }
 
-        private void DrawAddToPlaylistMenu(Song song, List<Playlist> availablePlaylists)
+        private void DrawAddToPlaylistMenu(Song song, List<PlaylistInfo> availablePlaylists)
         {
             using var menu = ImRaii.Menu("Add to Playlist");
             if (!menu) return;
@@ -498,11 +573,10 @@ namespace AscianMusicPlayer.Windows
 
             foreach (var playlist in availablePlaylists)
             {
-                bool alreadyInPlaylist = playlist.SongPaths.Contains(song.FilePath);
+                bool alreadyInPlaylist = _plugin.PlaylistManager.PlaylistContainsSong(playlist.Id, song.FilePath);
                 if (ImGui.MenuItem(playlist.Name, string.Empty, false, !alreadyInPlaylist))
                 {
                     _plugin.PlaylistManager.AddSongToPlaylist(playlist.Id, song.FilePath);
-                    _plugin.SaveSettings();
                 }
                 if (alreadyInPlaylist && ImGui.IsItemHovered())
                 {
@@ -511,7 +585,7 @@ namespace AscianMusicPlayer.Windows
             }
         }
 
-        private void DrawAddAlbumToPlaylistMenu(Song song, List<Playlist> availablePlaylists)
+        private void DrawAddAlbumToPlaylistMenu(Song song, List<PlaylistInfo> availablePlaylists)
         {
             using var menu = ImRaii.Menu("Add Album to Playlist");
             if (!menu) return;
@@ -528,19 +602,15 @@ namespace AscianMusicPlayer.Windows
 
             foreach (var playlist in availablePlaylists)
             {
-                int songsAlreadyInPlaylist = albumSongs.Count(s => playlist.SongPaths.Contains(s.FilePath));
+                int songsAlreadyInPlaylist = albumSongs.Count(s => _plugin.PlaylistManager.PlaylistContainsSong(playlist.Id, s.FilePath));
                 bool allInPlaylist = songsAlreadyInPlaylist == albumSongs.Count;
 
                 if (ImGui.MenuItem(playlist.Name, string.Empty, false, !allInPlaylist))
                 {
                     foreach (var albumSong in albumSongs)
                     {
-                        if (!playlist.SongPaths.Contains(albumSong.FilePath))
-                        {
-                            _plugin.PlaylistManager.AddSongToPlaylist(playlist.Id, albumSong.FilePath);
-                        }
+                        _plugin.PlaylistManager.AddSongToPlaylist(playlist.Id, albumSong.FilePath);
                     }
-                    _plugin.SaveSettings();
                 }
 
                 if (ImGui.IsItemHovered())
@@ -569,7 +639,6 @@ namespace AscianMusicPlayer.Windows
                 if (ImGui.MenuItem("Remove from Playlist"))
                 {
                     _plugin.PlaylistManager.RemoveSongFromPlaylist(_activePlaylistId.Value, song.FilePath);
-                    _plugin.SaveSettings();
                     RefreshDisplaySongs();
                 }
             }
@@ -589,99 +658,98 @@ namespace AscianMusicPlayer.Windows
             }
 
             var scale = ImGui.GetIO().FontGlobalScale;
-            ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(5, 5));
-            ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(3, 0));
+            using (ImRaii.PushStyle(ImGuiStyleVar.FramePadding, new Vector2(5, 5)))
+            using (ImRaii.PushStyle(ImGuiStyleVar.ItemSpacing, new Vector2(3, 0)))
+            {
+                float buttonWidth = 40f;
+                float spacing = ImGui.GetStyle().ItemSpacing.X;
+                float totalWidth = (5 * buttonWidth * scale) + (4 * spacing);
+                float windowWidth = ImGui.GetContentRegionAvail().X;
+                float offset = (windowWidth - totalWidth) / 2f;
 
-            float buttonWidth = 40f;
-            float spacing = ImGui.GetStyle().ItemSpacing.X;
-            float totalWidth = (5 * buttonWidth * scale) + (4 * spacing);
-            float windowWidth = ImGui.GetContentRegionAvail().X;
-            float offset = (windowWidth - totalWidth) / 2f;
-
-            if (offset > 0)
-            {
-                ImGui.SetCursorPosX(ImGui.GetCursorPosX() + offset);
-            }
-
-            Vector4? shuffleColor = _isShuffle ? new Vector4(0, 1, 0.5f, 1) : null;
-            if (ImGuiComponents.IconButton(FontAwesomeIcon.Random, shuffleColor, activeColor: null, hoveredColor: null, size: new Vector2(40, 0)))
-            {
-                ToggleShuffle();
-            }
-            if (ImGui.IsItemHovered())
-            {
-                ImGui.SetTooltip(_isShuffle ? "Shuffle: ON" : "Shuffle: OFF");
-            }
-
-            ImGui.SameLine();
-            if (ImGuiComponents.IconButton(FontAwesomeIcon.StepBackward, new Vector2(40, 0)))
-            {
-                PlayPrevious();
-            }
-            if (ImGui.IsItemHovered())
-            {
-                ImGui.SetTooltip("Previous");
-            }
-
-            ImGui.SameLine();
-            if (ImGuiComponents.IconButton(_plugin.AudioController.IsPlaying ? FontAwesomeIcon.Pause : FontAwesomeIcon.Play, new Vector2(40, 0)))
-            {
-                if (_plugin.AudioController.IsPlaying)
+                if (offset > 0)
                 {
-                    _plugin.AudioController.Pause();
-                    _plugin.UpdateDtr();
+                    ImGui.SetCursorPosX(ImGui.GetCursorPosX() + offset);
                 }
-                else if (_plugin.AudioController.IsPaused)
-                {
-                    _plugin.AudioController.Resume();
-                    _plugin.UpdateDtr();
-                }
-                else if (_selectedSongIndex >= 0 && _selectedSongIndex < _displaySongs.Count)
-                {
-                    PlaySong(_displaySongs[_selectedSongIndex]);
-                }
-            }
-            if (ImGui.IsItemHovered())
-            {
-                ImGui.SetTooltip(_plugin.AudioController.IsPlaying ? "Pause" : "Play");
-            }
 
-            ImGui.SameLine();
-            if (ImGuiComponents.IconButton(FontAwesomeIcon.StepForward, new Vector2(40, 0)))
-            {
-                PlayNext();
-            }
-            if (ImGui.IsItemHovered())
-            {
-                ImGui.SetTooltip("Next");
-            }
-
-            ImGui.SameLine();
-            Vector4? repeatColor = _repeatMode != RepeatMode.Off ? new Vector4(0, 1, 0.5f, 1) : null;
-            var repeatIcon = _repeatMode switch
-            {
-                RepeatMode.Off => FontAwesomeIcon.Redo,
-                RepeatMode.All => FontAwesomeIcon.Redo,
-                RepeatMode.One => FontAwesomeIcon.Music,
-                _ => FontAwesomeIcon.Redo
-            };
-            if (ImGuiComponents.IconButton(repeatIcon, repeatColor, activeColor: null, hoveredColor: null, size: new Vector2(40, 0)))
-            {
-                ToggleRepeat();
-            }
-            if (ImGui.IsItemHovered())
-            {
-                string repeatTooltip = _repeatMode switch
+                Vector4? shuffleColor = _isShuffle ? new Vector4(0.2f, 0.8f, 1.0f, 1.0f) : null;
+                if (ImGuiComponents.IconButton(FontAwesomeIcon.Random, shuffleColor, activeColor: null, hoveredColor: null, size: new Vector2(40, 0)))
                 {
-                    RepeatMode.Off => "Repeat: OFF",
-                    RepeatMode.All => "Repeat: ALL",
-                    RepeatMode.One => "Repeat: ONE",
-                    _ => "Repeat: OFF"
+                    ToggleShuffle();
+                }
+                if (ImGui.IsItemHovered())
+                {
+                    ImGui.SetTooltip(_isShuffle ? "Shuffle: ON" : "Shuffle: OFF");
+                }
+
+                ImGui.SameLine();
+                if (ImGuiComponents.IconButton(FontAwesomeIcon.StepBackward, new Vector2(40, 0)))
+                {
+                    PlayPrevious();
+                }
+                if (ImGui.IsItemHovered())
+                {
+                    ImGui.SetTooltip("Previous");
+                }
+
+                ImGui.SameLine();
+                if (ImGuiComponents.IconButton(_plugin.AudioController.IsPlaying ? FontAwesomeIcon.Pause : FontAwesomeIcon.Play, new Vector2(40, 0)))
+                {
+                    if (_plugin.AudioController.IsPlaying)
+                    {
+                        _plugin.AudioController.Pause();
+                        _plugin.UpdateDtr();
+                    }
+                    else if (_plugin.AudioController.IsPaused)
+                    {
+                        _plugin.AudioController.Resume();
+                        _plugin.UpdateDtr();
+                    }
+                    else if (_selectedSongIndex >= 0 && _selectedSongIndex < _displaySongs.Count)
+                    {
+                        PlaySong(_displaySongs[_selectedSongIndex]);
+                    }
+                }
+                if (ImGui.IsItemHovered())
+                {
+                    ImGui.SetTooltip(_plugin.AudioController.IsPlaying ? "Pause" : "Play");
+                }
+
+                ImGui.SameLine();
+                if (ImGuiComponents.IconButton(FontAwesomeIcon.StepForward, new Vector2(40, 0)))
+                {
+                    PlayNext();
+                }
+                if (ImGui.IsItemHovered())
+                {
+                    ImGui.SetTooltip("Next");
+                }
+
+                ImGui.SameLine();
+                Vector4? repeatColor = _repeatMode != RepeatMode.Off ? new Vector4(0.2f, 0.8f, 1.0f, 1.0f) : null;
+                var repeatIcon = _repeatMode switch
+                {
+                    RepeatMode.Off => FontAwesomeIcon.Redo,
+                    RepeatMode.All => FontAwesomeIcon.Redo,
+                    RepeatMode.One => FontAwesomeIcon.Music,
+                    _ => FontAwesomeIcon.Redo
                 };
-                ImGui.SetTooltip(repeatTooltip);
+                if (ImGuiComponents.IconButton(repeatIcon, repeatColor, activeColor: null, hoveredColor: null, size: new Vector2(40, 0)))
+                {
+                    ToggleRepeat();
+                }
+                if (ImGui.IsItemHovered())
+                {
+                    string repeatTooltip = _repeatMode switch
+                    {
+                        RepeatMode.Off => "Repeat: OFF",
+                        RepeatMode.All => "Repeat: ALL",
+                        RepeatMode.One => "Repeat: ONE",
+                        _ => "Repeat: OFF"
+                    };
+                    ImGui.SetTooltip(repeatTooltip);
+                }
             }
-
-            ImGui.PopStyleVar(2);
 
             ImGui.Spacing();
 
@@ -707,7 +775,7 @@ namespace AscianMusicPlayer.Windows
 
             if (_currentSong != null)
             {
-                ImGui.TextColored(new Vector4(0, 1, 0, 1), $"Now Playing: {_currentSong.Title} - {_currentSong.Artist}");
+                ImGui.TextColored(new Vector4(0.2f, 0.8f, 1.0f, 1.0f), $"Now Playing: {_currentSong.Title} - {_currentSong.Artist}");
             }
             else if (_selectedSongIndex >= 0 && _selectedSongIndex < _displaySongs.Count)
             {
@@ -729,6 +797,15 @@ namespace AscianMusicPlayer.Windows
                 return;
             }
 
+            if (_isLoadingSongs)
+            {
+                DrawCenteredError(
+                    "Scanning library...",
+                    new Vector4(0.2f, 0.8f, 1.0f, 1.0f),
+                    Plugin.Settings.MediaFolder);
+                return;
+            }
+
             if (_songs.Count == 0)
             {
                 DrawCenteredError(
@@ -740,14 +817,20 @@ namespace AscianMusicPlayer.Windows
             }
 
             int columnCount = 1;
+            if (Plugin.Settings.ShowTrackNumberColumn) columnCount++;
             if (Plugin.Settings.ShowArtistColumn) columnCount++;
             if (Plugin.Settings.ShowAlbumColumn) columnCount++;
             if (Plugin.Settings.ShowLengthColumn) columnCount++;
+            if (Plugin.Settings.ShowHasLyricsColumn) columnCount++;
 
             using (var table = ImRaii.Table("SongTable", columnCount, ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg | ImGuiTableFlags.ScrollY | ImGuiTableFlags.Resizable | ImGuiTableFlags.Sortable))
             {
                 if (table)
                 {
+                if (Plugin.Settings.ShowTrackNumberColumn)
+                {
+                    ImGui.TableSetupColumn("#", ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.PreferSortAscending, 35);
+                }
                 ImGui.TableSetupColumn("Title", ImGuiTableColumnFlags.WidthStretch | ImGuiTableColumnFlags.NoHide | ImGuiTableColumnFlags.DefaultSort | ImGuiTableColumnFlags.PreferSortAscending);
 
                 if (Plugin.Settings.ShowArtistColumn)
@@ -762,47 +845,68 @@ namespace AscianMusicPlayer.Windows
                 {
                     ImGui.TableSetupColumn("Length", ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.PreferSortAscending, 85);
                 }
+                if (Plugin.Settings.ShowHasLyricsColumn)
+                {
+                    ImGui.TableSetupColumn("Lyrics", ImGuiTableColumnFlags.WidthFixed | ImGuiTableColumnFlags.PreferSortAscending, 65);
+                }
 
                 ImGui.TableSetupScrollFreeze(0, 2);
                 ImGui.TableHeadersRow();
 
                 ImGui.TableNextRow(ImGuiTableRowFlags.Headers);
 
-                ImGui.TableSetColumnIndex(0);
-                ImGui.SetNextItemWidth(-1);
-                ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(0, 0));
-                if (ImGui.InputTextWithHint("##SearchTitle", "", ref _searchTitle, 256))
+                int titleSearchCol = 0;
+                if (Plugin.Settings.ShowTrackNumberColumn)
                 {
-                    ApplySearchFilter();
+                    ImGui.TableSetColumnIndex(0);
+                    ImGui.Text("");
+                    titleSearchCol = 1;
                 }
-                ImGui.PopStyleVar();
 
-                int searchCol = 1;
+                ImGui.TableSetColumnIndex(titleSearchCol);
+                ImGui.SetNextItemWidth(-1);
+                using (ImRaii.PushStyle(ImGuiStyleVar.FramePadding, new Vector2(0, 0)))
+                {
+                    if (ImGui.InputTextWithHint("##SearchTitle", "", ref _searchTitle, 256))
+                    {
+                        ApplySearchFilter();
+                    }
+                }
+
+                int searchCol = titleSearchCol + 1;
                 if (Plugin.Settings.ShowArtistColumn)
                 {
                     ImGui.TableSetColumnIndex(searchCol);
                     ImGui.SetNextItemWidth(-1);
-                    ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(0, 0));
-                    if (ImGui.InputTextWithHint("##SearchArtist", "", ref _searchArtist, 256))
+                    using (ImRaii.PushStyle(ImGuiStyleVar.FramePadding, new Vector2(0, 0)))
                     {
-                        ApplySearchFilter();
+                        if (ImGui.InputTextWithHint("##SearchArtist", "", ref _searchArtist, 256))
+                        {
+                            ApplySearchFilter();
+                        }
                     }
-                    ImGui.PopStyleVar();
                     searchCol++;
                 }
                 if (Plugin.Settings.ShowAlbumColumn)
                 {
                     ImGui.TableSetColumnIndex(searchCol);
                     ImGui.SetNextItemWidth(-1);
-                    ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(0, 0));
-                    if (ImGui.InputTextWithHint("##SearchAlbum", "", ref _searchAlbum, 256))
+                    using (ImRaii.PushStyle(ImGuiStyleVar.FramePadding, new Vector2(0, 0)))
                     {
-                        ApplySearchFilter();
+                        if (ImGui.InputTextWithHint("##SearchAlbum", "", ref _searchAlbum, 256))
+                        {
+                            ApplySearchFilter();
+                        }
                     }
-                    ImGui.PopStyleVar();
                     searchCol++;
                 }
                 if (Plugin.Settings.ShowLengthColumn)
+                {
+                    ImGui.TableSetColumnIndex(searchCol);
+                    ImGui.Text("");
+                    searchCol++;
+                }
+                if (Plugin.Settings.ShowHasLyricsColumn)
                 {
                     ImGui.TableSetColumnIndex(searchCol);
                     ImGui.Text("");
@@ -821,47 +925,69 @@ namespace AscianMusicPlayer.Windows
 
                             int actualColumnIndex = spec.ColumnIndex;
 
-                            if (actualColumnIndex == 0)
+                            int visibleCol = 0;
+                            if (Plugin.Settings.ShowTrackNumberColumn)
                             {
-                                _songs = ascending 
+                                if (actualColumnIndex == visibleCol)
+                                {
+                                    _displaySongs = ascending
+                                        ? _displaySongs.OrderBy(s => s.AlbumArtist).ThenBy(s => s.Album).ThenBy(s => s.TrackNumber).ThenBy(s => s.Title).ToList()
+                                        : _displaySongs.OrderByDescending(s => s.AlbumArtist).ThenByDescending(s => s.Album).ThenByDescending(s => s.TrackNumber).ThenByDescending(s => s.Title).ToList();
+                                    ApplySearchFilter();
+                                }
+                                visibleCol++;
+                            }
+
+                            if (actualColumnIndex == visibleCol)
+                            {
+                                _songs = ascending
                                     ? _songs.OrderBy(s => s.Title).ToList()
                                     : _songs.OrderByDescending(s => s.Title).ToList();
                                 RefreshDisplaySongs();
                             }
-                            else
+                            visibleCol++;
+
+                            if (Plugin.Settings.ShowArtistColumn)
                             {
-                                int visibleCol = 1;
-                                if (Plugin.Settings.ShowArtistColumn)
+                                if (actualColumnIndex == visibleCol)
                                 {
-                                    if (actualColumnIndex == visibleCol)
-                                    {
-                                        _displaySongs = ascending
-                                            ? _displaySongs.OrderBy(s => s.Artist).ThenBy(s => s.Title).ToList()
-                                            : _displaySongs.OrderByDescending(s => s.Artist).ThenByDescending(s => s.Title).ToList();
-                                        ApplySearchFilter();
-                                    }
-                                    visibleCol++;
+                                    _displaySongs = ascending
+                                        ? _displaySongs.OrderBy(s => s.Artist).ThenBy(s => s.Title).ToList()
+                                        : _displaySongs.OrderByDescending(s => s.Artist).ThenByDescending(s => s.Title).ToList();
+                                    ApplySearchFilter();
                                 }
-                                if (Plugin.Settings.ShowAlbumColumn)
+                                visibleCol++;
+                            }
+                            if (Plugin.Settings.ShowAlbumColumn)
+                            {
+                                if (actualColumnIndex == visibleCol)
                                 {
-                                    if (actualColumnIndex == visibleCol)
-                                    {
-                                        _displaySongs = ascending
-                                            ? _displaySongs.OrderBy(s => s.Album).ThenBy(s => s.Title).ToList()
-                                            : _displaySongs.OrderByDescending(s => s.Album).ThenByDescending(s => s.Title).ToList();
-                                        ApplySearchFilter();
-                                    }
-                                    visibleCol++;
+                                    _displaySongs = ascending
+                                        ? _displaySongs.OrderBy(s => s.Album).ThenBy(s => s.TrackNumber).ThenBy(s => s.Title).ToList()
+                                        : _displaySongs.OrderByDescending(s => s.Album).ThenByDescending(s => s.TrackNumber).ThenByDescending(s => s.Title).ToList();
+                                    ApplySearchFilter();
                                 }
-                                if (Plugin.Settings.ShowLengthColumn)
+                                visibleCol++;
+                            }
+                            if (Plugin.Settings.ShowLengthColumn)
+                            {
+                                if (actualColumnIndex == visibleCol)
                                 {
-                                    if (actualColumnIndex == visibleCol)
-                                    {
-                                        _displaySongs = ascending
-                                            ? _displaySongs.OrderBy(s => s.Duration).ThenBy(s => s.Title).ToList()
-                                            : _displaySongs.OrderByDescending(s => s.Duration).ThenByDescending(s => s.Title).ToList();
-                                        ApplySearchFilter();
-                                    }
+                                    _displaySongs = ascending
+                                        ? _displaySongs.OrderBy(s => s.Duration).ThenBy(s => s.Title).ToList()
+                                        : _displaySongs.OrderByDescending(s => s.Duration).ThenByDescending(s => s.Title).ToList();
+                                    ApplySearchFilter();
+                                }
+                                visibleCol++;
+                            }
+                            if (Plugin.Settings.ShowHasLyricsColumn)
+                            {
+                                if (actualColumnIndex == visibleCol)
+                                {
+                                    _displaySongs = ascending
+                                        ? _displaySongs.OrderBy(s => s.HasSyncedLyrics || (Plugin.Settings.FetchLyricsOnline && s.LrcLibLyricsAvailable)).ThenBy(s => s.Title).ToList()
+                                        : _displaySongs.OrderByDescending(s => s.HasSyncedLyrics || (Plugin.Settings.FetchLyricsOnline && s.LrcLibLyricsAvailable)).ThenByDescending(s => s.Title).ToList();
+                                    ApplySearchFilter();
                                 }
                             }
 
@@ -877,12 +1003,23 @@ namespace AscianMusicPlayer.Windows
                     var song = _filteredSongs[i];
                     ImGui.TableNextRow();
 
+                    if (Plugin.Settings.ShowTrackNumberColumn)
+                    {
+                        ImGui.TableNextColumn();
+                        ImGui.Text(song.TrackNumber > 0 ? song.TrackNumber.ToString() : "");
+                    }
+
                     ImGui.TableNextColumn();
                     bool isSelected = _selectedSongIndex >= 0 && _selectedSongIndex < _displaySongs.Count && _displaySongs[_selectedSongIndex] == song;
-                    if (ImGui.Selectable(song.Title, isSelected, ImGuiSelectableFlags.SpanAllColumns))
+                    using (isSelected ? ImRaii.PushColor(ImGuiCol.Header, new Vector4(0.2f, 0.8f, 1.0f, 0.4f)) : null)
+                    using (isSelected ? ImRaii.PushColor(ImGuiCol.HeaderHovered, new Vector4(0.2f, 0.8f, 1.0f, 0.5f)) : null)
+                    using (isSelected ? ImRaii.PushColor(ImGuiCol.HeaderActive, new Vector4(0.2f, 0.8f, 1.0f, 0.6f)) : null)
                     {
-                        _selectedSongIndex = _displaySongs.IndexOf(song);
-                        PlaySong(song);
+                        if (ImGui.Selectable(song.Title, isSelected, ImGuiSelectableFlags.SpanAllColumns))
+                        {
+                            _selectedSongIndex = _displaySongs.IndexOf(song);
+                            PlaySong(song);
+                        }
                     }
 
                     using (var popup = ImRaii.ContextPopupItem($"songContext_{i}"))
@@ -909,6 +1046,19 @@ namespace AscianMusicPlayer.Windows
                         {
                             ImGui.TableNextColumn();
                             ImGui.Text(song.FormattedDuration);
+                        }
+
+                        if (Plugin.Settings.ShowHasLyricsColumn)
+                        {
+                            ImGui.TableNextColumn();
+                            var hasLyrics = song.HasSyncedLyrics || (Plugin.Settings.FetchLyricsOnline && song.LrcLibLyricsAvailable);
+                            var lyricsIcon = hasLyrics ? "✓" : "x";
+                            var iconColor = hasLyrics
+                                ? new Vector4(0.2f, 0.8f, 0.2f, 1.0f)
+                                : new Vector4(0.5f, 0.5f, 0.5f, 1.0f);
+                            var iconSize = ImGui.CalcTextSize(lyricsIcon);
+                            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + (ImGui.GetContentRegionAvail().X - iconSize.X) / 2f);
+                            ImGui.TextColored(iconColor, lyricsIcon);
                         }
                     }
                 }
