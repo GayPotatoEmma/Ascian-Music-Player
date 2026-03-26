@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Text.Json.Serialization;
@@ -11,7 +12,8 @@ namespace AscianMusicPlayer.Audio
     public class LyricsService : IDisposable
     {
         private readonly HttpClient _httpClient;
-        private readonly Dictionary<string, List<LyricLine>> _lyricsCache = new();
+        private readonly ConcurrentDictionary<string, Task<List<LyricLine>>> _fetchCache = new();
+        private readonly ConcurrentDictionary<string, List<LyricLine>> _lyricsCache = new();
 
         public LyricsService()
         {
@@ -22,7 +24,13 @@ namespace AscianMusicPlayer.Audio
             _httpClient.DefaultRequestHeaders.Add("User-Agent", "AscianMusicPlayer/1.0");
         }
 
-        public async Task<List<LyricLine>> FetchSyncedLyricsAsync(Song song)
+        public Task<List<LyricLine>> FetchSyncedLyricsAsync(Song song)
+        {
+            string cacheKey = $"{song.Artist}|{song.Title}|{song.Album}";
+            return _fetchCache.GetOrAdd(cacheKey, _ => FetchSyncedLyricsInternalAsync(song));
+        }
+
+        private async Task<List<LyricLine>> FetchSyncedLyricsInternalAsync(Song song)
         {
             string cacheKey = $"{song.Artist}|{song.Title}|{song.Album}";
             if (_lyricsCache.TryGetValue(cacheKey, out var cachedLyrics))
@@ -47,8 +55,9 @@ namespace AscianMusicPlayer.Audio
                 if (!response.IsSuccessStatusCode)
                 {
                     Plugin.Log.Warning($"LRCLIB API returned status {response.StatusCode} for: {song.Title}");
-                    _lyricsCache[cacheKey] = new List<LyricLine>();
-                    return new List<LyricLine>();
+                    var empty = new List<LyricLine>();
+                    _lyricsCache[cacheKey] = empty;
+                    return empty;
                 }
 
                 var json = await response.Content.ReadAsStringAsync();
@@ -65,28 +74,29 @@ namespace AscianMusicPlayer.Audio
                     _lyricsCache[cacheKey] = lyrics;
                     return lyrics;
                 }
-                else if (lrcData?.PlainLyrics != null)
-                {
-                    Plugin.Log.Information($"Found plain lyrics (no timestamps) for: {song.Title}");
-                    _lyricsCache[cacheKey] = new List<LyricLine>();
-                    return new List<LyricLine>();
-                }
                 else
                 {
-                    Plugin.Log.Information($"No lyrics found for: {song.Title}");
-                    _lyricsCache[cacheKey] = new List<LyricLine>();
-                    return new List<LyricLine>();
+                    if (lrcData?.PlainLyrics != null)
+                        Plugin.Log.Information($"Found plain lyrics (no timestamps) for: {song.Title}");
+                    else
+                        Plugin.Log.Information($"No lyrics found for: {song.Title}");
+
+                    var empty = new List<LyricLine>();
+                    _lyricsCache[cacheKey] = empty;
+                    return empty;
                 }
             }
             catch (Exception ex)
             {
                 Plugin.Log.Error($"Error fetching lyrics for {song.Title}: {ex.Message}");
+                _fetchCache.TryRemove(cacheKey, out _);
                 return new List<LyricLine>();
             }
         }
 
         public void ClearCache()
         {
+            _fetchCache.Clear();
             _lyricsCache.Clear();
         }
 
