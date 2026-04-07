@@ -5,6 +5,9 @@ using System.Collections.Generic;
 using System.Drawing.Text;
 using System.Linq;
 using System.Text.Unicode;
+using FFXIVClientStructs.FFXIV.Client.Game.Character;
+using FFXIVClientStructs.FFXIV.Client.System.String;
+using FFXIVClientStructs.FFXIV.Client.UI.Misc;
 using Dalamud.Game.Command;
 using Dalamud.Game.Gui.Dtr;
 using Dalamud.Game.Gui.FlyText;
@@ -35,6 +38,8 @@ namespace AscianMusicPlayer
         [PluginService] public static IChatGui ChatGui { get; private set; } = null!;
         [PluginService] public static ITextureProvider TextureProvider { get; private set; } = null!;
         [PluginService] public static IFlyTextGui FlyTextGui { get; private set; } = null!;
+        [PluginService] public static IClientState ClientState { get; private set; } = null!;
+        [PluginService] public static IObjectTable ObjectTable { get; private set; } = null!;
 
         public static Settings Settings { get; private set; } = null!;
 
@@ -99,6 +104,7 @@ namespace AscianMusicPlayer
         private Song? _currentLyricSong = null;
         private bool _isFetchingLyrics = false;
         private TimeSpan _lastKnownPosition = TimeSpan.Zero;
+        private DateTime _lipSyncStopTime = DateTime.MinValue;
 
         public Plugin()
         {
@@ -210,12 +216,23 @@ namespace AscianMusicPlayer
             this.AudioController.UpdateCrossfade();
 
             UpdateSyncedLyrics();
+
+            if (_lipSyncStopTime != DateTime.MinValue && DateTime.UtcNow >= _lipSyncStopTime)
+            {
+                SetPlayerLipSync(0);
+                _lipSyncStopTime = DateTime.MinValue;
+            }
         }
 
         private void UpdateSyncedLyrics()
         {
             if (!AudioController.IsPlaying)
             {
+                if (_lipSyncStopTime != DateTime.MinValue)
+                {
+                    SetPlayerLipSync(0);
+                    _lipSyncStopTime = DateTime.MinValue;
+                }
                 return;
             }
 
@@ -232,6 +249,12 @@ namespace AscianMusicPlayer
                 _lastLyricIndex = -1;
                 _isFetchingLyrics = false;
                 _lastKnownPosition = TimeSpan.Zero;
+
+                if (_lipSyncStopTime != DateTime.MinValue)
+                {
+                    SetPlayerLipSync(0);
+                    _lipSyncStopTime = DateTime.MinValue;
+                }
 
                 LyricsWindow.SetCurrentSong(currentSong);
 
@@ -297,6 +320,18 @@ namespace AscianMusicPlayer
                         {
                             PrintLyricToChat(lyricLine.Text);
                         }
+                        if (Settings.LyricsDisplayMode == 3 || Settings.LyricsLipSync)
+                        {
+                            var lipSyncBase = (ushort)(626 + Math.Clamp(Settings.LipSyncStyle, 0, 2) * 3);
+                            var talkId = lyricLine.Text.Length < 20 ? lipSyncBase
+                                : lyricLine.Text.Length < 50 ? (ushort)(lipSyncBase + 1)
+                                : (ushort)(lipSyncBase + 2);
+                            SetPlayerLipSync(talkId);
+                            var stopSecs = i + 1 < currentSong.SyncedLyrics.Count
+                                ? Math.Clamp((currentSong.SyncedLyrics[i + 1].Time - currentTime).TotalSeconds, 0.5, 3.0)
+                                : 1.5;
+                            _lipSyncStopTime = DateTime.UtcNow.AddSeconds(stopSecs);
+                        }
                         _lastLyricIndex = i;
                         LyricsWindow.UpdateCurrentLyricIndex(i);
                     }
@@ -352,28 +387,82 @@ namespace AscianMusicPlayer
         {
             try
             {
-                if (Settings.LyricsDisplayMode == 2)
+                switch (Settings.LyricsDisplayMode)
                 {
-                    FlyTextGui.AddFlyText(
-                        FlyTextKind.Named,
-                        1,
-                        0,
-                        0,
-                        new SeString(new List<Payload> { new TextPayload($"♪ {lyric}") }),
-                        SeString.Empty,
-                        Settings.FlyTextLyricColor,
-                        0,
-                        0
-                    );
-                }
-                else
-                {
-                    ChatGui.Print($"♪ {lyric}", "AMP", 56);
+                    case 2:
+                        FlyTextGui.AddFlyText(
+                            FlyTextKind.Named,
+                            1,
+                            0,
+                            0,
+                            new SeString(new List<Payload> { new TextPayload($"♪ {lyric}") }),
+                            SeString.Empty,
+                            Settings.FlyTextLyricColor,
+                            0,
+                            0
+                        );
+                        break;
+                    case 3:
+                        ShowChatBubble(lyric);
+                        break;
+                    default:
+                        ChatGui.Print($"♪ {lyric}", "AMP", 56);
+                        break;
                 }
             }
             catch (Exception ex)
             {
                 Log.Error($"Failed to print lyric: {ex.Message}");
+            }
+        }
+
+        private unsafe void ShowChatBubble(string lyric)
+        {
+            try
+            {
+                var localPlayer = ObjectTable.LocalPlayer;
+                if (localPlayer == null) return;
+
+                var logModule = RaptureLogModule.Instance();
+                if (logModule == null) return;
+
+                Utf8String sender = default;
+                Utf8String message = default;
+                sender.Ctor();
+                message.Ctor();
+                try
+                {
+                    sender.SetString(localPlayer.Name.TextValue);
+                    message.SetString($"♪ {lyric}");
+                    var logKind = Settings.ChatBubbleStyles[
+                        Math.Clamp(Settings.ChatBubbleStyleIndex, 0, Settings.ChatBubbleStyles.Length - 1)
+                    ].LogKind;
+                    logModule->ShowMiniTalkPlayer(logKind, &sender, &message, (ushort)localPlayer.HomeWorld.RowId, true);
+                }
+                finally
+                {
+                    sender.Dtor();
+                    message.Dtor();
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"Failed to show chat bubble: {ex.Message}");
+            }
+        }
+
+        private unsafe void SetPlayerLipSync(ushort id)
+        {
+            try
+            {
+                var localPlayer = ObjectTable.LocalPlayer;
+                if (localPlayer == null) return;
+                var character = (Character*)localPlayer.Address;
+                character->Timeline.SetLipsOverrideTimeline(id);
+            }
+            catch (Exception ex)
+            {
+                Log.Error($"Failed to set lip sync: {ex.Message}");
             }
         }
 
@@ -785,6 +874,7 @@ namespace AscianMusicPlayer
 
         public void Dispose()
         {
+            SetPlayerLipSync(0);
             Framework.Update -= OnFrameworkUpdate;
             PluginInterface.UiBuilder.Draw -= DrawUI;
             PluginInterface.UiBuilder.OpenMainUi -= DrawMainUI;

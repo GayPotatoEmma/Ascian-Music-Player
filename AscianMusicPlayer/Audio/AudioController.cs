@@ -338,7 +338,7 @@ namespace AscianMusicPlayer.Audio
         {
             if (e.Exception == null)
             {
-                SongEnded?.Invoke(this, EventArgs.Empty);
+                Plugin.Framework.RunOnFrameworkThread(() => SongEnded?.Invoke(this, EventArgs.Empty));
             }
             else
             {

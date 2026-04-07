@@ -26,6 +26,11 @@ namespace AscianMusicPlayer.Windows
             "Game: Meidinger", "Game: Meidinger Mid", "Game: Trump Gothic"
         ];
 
+        private static readonly string[] ChatBubbleStyleNames =
+            Array.ConvertAll(Settings.ChatBubbleStyles, s => s.Name);
+
+        private static readonly string[] LipSyncStyleNames = ["Whisper", "Normal", "Shout"];
+
         public LyricsSettingsWindow(Plugin plugin) : base("Lyrics Settings###AscianMusicPlayerLyricsSettings")
         {
             _plugin = plugin;
@@ -192,14 +197,14 @@ namespace AscianMusicPlayer.Windows
             DrawSectionHeader("Display Mode");
 
             ImGui.Text("Lyrics display mode");
-            string[] displayModes = ["None", "Chat", "Flytext"];
+            string[] displayModes = ["None", "Chat", "Flytext", "Chat Bubble"];
             int currentMode = Plugin.Settings.LyricsDisplayMode;
             if (ImGui.Combo("##LyricsDisplayMode", ref currentMode, displayModes, displayModes.Length))
             {
                 Plugin.Settings.LyricsDisplayMode = currentMode;
                 _plugin.SaveSettings();
             }
-            DrawTooltip("How to display synced lyrics\nNone: Disabled\nChat: Print to chat\nFlytext: Show as flytext");
+            DrawTooltip("How to display synced lyrics\nNone: Disabled\nChat: Print to chat\nFlytext: Show as flytext\nChat Bubble: Speech bubble above your character");
 
             if (Plugin.Settings.LyricsDisplayMode == 2)
             {
@@ -221,6 +226,47 @@ namespace AscianMusicPlayer.Windows
                     Plugin.Settings.FlyTextLyricColor = r | (g << 8) | (b << 16) | (a << 24);
                     _plugin.SaveSettings();
                 }
+            }
+
+            if (Plugin.Settings.LyricsDisplayMode == 3)
+            {
+                ImGui.Spacing();
+                using var indent = ImRaii.PushIndent();
+                ImGui.Text("Bubble style");
+                int styleIdx = Math.Clamp(Plugin.Settings.ChatBubbleStyleIndex, 0, ChatBubbleStyleNames.Length - 1);
+                if (ImGui.Combo("##ChatBubbleStyle", ref styleIdx, ChatBubbleStyleNames, ChatBubbleStyleNames.Length))
+                {
+                    Plugin.Settings.ChatBubbleStyleIndex = styleIdx;
+                    _plugin.SaveSettings();
+                }
+                DrawTooltip("Chat channel style used for the speech bubble.");
+            }
+
+            ImGui.Spacing();
+            ImGui.Spacing();
+
+            DrawSectionHeader("Lip Sync");
+
+            bool lipSync = Plugin.Settings.LyricsLipSync;
+            if (ImGui.Checkbox("Enable lip sync animation", ref lipSync))
+            {
+                Plugin.Settings.LyricsLipSync = lipSync;
+                _plugin.SaveSettings();
+            }
+            DrawTooltip("Animate your character's mouth in sync with each lyric line.");
+
+            if (Plugin.Settings.LyricsLipSync)
+            {
+                ImGui.Spacing();
+                using var indent = ImRaii.PushIndent();
+                ImGui.Text("Style");
+                int lipSyncStyle = Math.Clamp(Plugin.Settings.LipSyncStyle, 0, LipSyncStyleNames.Length - 1);
+                if (ImGui.Combo("##LipSyncStyle", ref lipSyncStyle, LipSyncStyleNames, LipSyncStyleNames.Length))
+                {
+                    Plugin.Settings.LipSyncStyle = lipSyncStyle;
+                    _plugin.SaveSettings();
+                }
+                DrawTooltip("Whisper: soft mouth movement\nNormal: standard talking animation\nShout: exaggerated mouth movement");
             }
 
             ImGui.Spacing();

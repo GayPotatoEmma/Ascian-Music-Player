@@ -30,8 +30,26 @@ namespace AscianMusicPlayer
         public bool HideWithGameUi = true;
         public bool MiniPlayerTextScrolling = true;
         public int LyricsDisplayMode = 0;
+        public bool LyricsLipSync = false;
+        public int LipSyncStyle = 1;
+        public int ChatBubbleStyleIndex = 4;
         public bool FetchLyricsOnline = false;
         public uint FlyTextLyricColor = 0xFF0000FF;
+
+        public static readonly (string Name, ushort LogKind)[] ChatBubbleStyles =
+        [
+            ("Say",                   10),
+            ("Yell",                  30),
+            ("Shout",                 11),
+            ("Tell",                  12),
+            ("Party",                 14),
+            ("Alliance",              15),
+            ("Free Company",          24),
+            ("PvP Team",              36),
+            ("Cross-world Linkshell", 101),
+            ("Linkshell",             16),
+            ("Novice Network",        27),
+        ];
 
         public float CrossfadeDuration = 0f;
 
