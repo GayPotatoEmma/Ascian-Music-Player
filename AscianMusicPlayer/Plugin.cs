@@ -320,7 +320,7 @@ namespace AscianMusicPlayer
                         {
                             PrintLyricToChat(lyricLine.Text);
                         }
-                        if (Settings.LyricsDisplayMode == 3 || Settings.LyricsLipSync)
+                        if (Settings.LyricsLipSync)
                         {
                             var lipSyncBase = (ushort)(626 + Math.Clamp(Settings.LipSyncStyle, 0, 2) * 3);
                             var talkId = lyricLine.Text.Length < 20 ? lipSyncBase
