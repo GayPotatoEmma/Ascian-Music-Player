@@ -22,6 +22,7 @@ using Dalamud.Interface.GameFonts;
 using AscianMusicPlayer.Windows;
 using AscianMusicPlayer.Audio;
 using AscianMusicPlayer.Data;
+using AscianMusicPlayer.Ipc;
 
 namespace AscianMusicPlayer
 {
@@ -56,6 +57,7 @@ namespace AscianMusicPlayer
         public FirstLaunchWindow FirstLaunchWindow { get; private set; }
         public LyricsWindow LyricsWindow { get; private set; }
         public LyricsSettingsWindow LyricsSettingsWindow { get; private set; }
+        private IpcProvider _ipcProvider = null!;
         private IDtrBarEntry? _dtrEntry;
 
         internal const float LyricsFontBaseSize = 30.0f;
@@ -186,6 +188,8 @@ namespace AscianMusicPlayer
             {
                 HelpMessage = "Opens the Ascian Music Player lyrics window."
             });
+
+            _ipcProvider = new IpcProvider(this);
 
             PluginInterface.UiBuilder.Draw += DrawUI;
             PluginInterface.UiBuilder.OpenMainUi += DrawMainUI;
@@ -892,6 +896,7 @@ namespace AscianMusicPlayer
             CommandManager.RemoveHandler("/ampsettings");
             CommandManager.RemoveHandler("/ampplaylist");
             CommandManager.RemoveHandler("/amplyrics");
+            _ipcProvider.Dispose();
         }
     }
 }
