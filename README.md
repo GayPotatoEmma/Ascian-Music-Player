@@ -24,3 +24,6 @@
 - Open the main plugin window
 - Follow the setup wizard to get you set up with your media folder
 - Blast some tunes!
+
+## Optional Extras
+- [Ascian Music Player plugin for Umbra XIV](https://github.com/GayPotatoEmma/Umbra.AscianMusicPlayer)
