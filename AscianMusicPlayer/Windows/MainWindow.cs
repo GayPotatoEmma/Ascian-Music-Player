@@ -729,10 +729,10 @@ namespace AscianMusicPlayer.Windows
                 Vector4? repeatColor = _repeatMode != RepeatMode.Off ? new Vector4(0.2f, 0.8f, 1.0f, 1.0f) : null;
                 var repeatIcon = _repeatMode switch
                 {
-                    RepeatMode.Off => FontAwesomeIcon.Redo,
-                    RepeatMode.All => FontAwesomeIcon.Redo,
-                    RepeatMode.One => FontAwesomeIcon.Music,
-                    _ => FontAwesomeIcon.Redo
+                    RepeatMode.Off => FontAwesomeIcon.Retweet,
+                    RepeatMode.All => FontAwesomeIcon.Retweet,
+                    RepeatMode.One => FontAwesomeIcon.Redo,
+                    _ => FontAwesomeIcon.Retweet
                 };
                 if (ImGuiComponents.IconButton(repeatIcon, repeatColor, activeColor: null, hoveredColor: null, size: new Vector2(40, 0)))
                 {
