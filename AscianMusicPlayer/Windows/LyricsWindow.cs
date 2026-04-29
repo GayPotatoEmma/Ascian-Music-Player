@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Numerics;
 using AscianMusicPlayer.Audio;
@@ -133,7 +134,7 @@ namespace AscianMusicPlayer.Windows
         {
 
             var fontHandle = _plugin.GetLyricsFontHandle();
-            ImRaii.Font? fontPush = null;
+            IDisposable? fontPush = null;
 
             if (fontHandle != null)
             {

@@ -80,12 +80,12 @@ namespace AscianMusicPlayer
 
         public List<Playlist> Playlists { get; set; } = new();
 
-        public const uint ChannelBgm = 175;
-        public const uint ChannelSe = 176;
-        public const uint ChannelVoice = 177;
-        public const uint ChannelEnv = 178;
-        public const uint ChannelSystem = 179;
-        public const uint ChannelPerform = 180;
+        public const uint ChannelBgm = 176;
+        public const uint ChannelSe = 177;
+        public const uint ChannelVoice = 178;
+        public const uint ChannelEnv = 179;
+        public const uint ChannelSystem = 180;
+        public const uint ChannelPerform = 181;
 
         public void Save()
         {
