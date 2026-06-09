@@ -301,7 +301,7 @@ namespace AscianMusicPlayer.Audio
             try
             {
                 _audioFile = new AudioFileReader(song.FilePath);
-                _outputDevice = new WaveOutEvent();
+                _outputDevice = CreateOutputDevice();
                 _outputDevice.Init(_audioFile);
                 _outputDevice.PlaybackStopped += OnPlaybackStopped;
 
@@ -491,7 +491,7 @@ namespace AscianMusicPlayer.Audio
             try
             {
                 _nextAudioFile = new AudioFileReader(nextSong.FilePath);
-                _nextOutputDevice = new WaveOutEvent();
+                _nextOutputDevice = CreateOutputDevice();
                 _nextOutputDevice.Init(_nextAudioFile);
                 _nextOutputDevice.PlaybackStopped += OnNextPlaybackStopped;
 
@@ -631,6 +631,34 @@ namespace AscianMusicPlayer.Audio
                 else if (!shouldMuteBgm && _weMutedGame)
                 {
                     MuteBgm(false);
+                }
+            }
+        }
+
+        private IWavePlayer CreateOutputDevice()
+        {
+            try
+            {
+                Plugin.Log.Debug("Attempting to create WaveOutEvent device");
+                var waveOut = new WaveOutEvent();
+                Plugin.Log.Information("Successfully created WaveOutEvent device");
+                return waveOut;
+            }
+            catch (Exception ex)
+            {
+                Plugin.Log.Warning($"Failed to create WaveOutEvent device: {ex.Message}");
+                Plugin.Log.Information("Falling back to DirectSoundOut");
+
+                try
+                {
+                    var directSound = new DirectSoundOut();
+                    Plugin.Log.Information("Successfully created DirectSoundOut device");
+                    return directSound;
+                }
+                catch (Exception dsEx)
+                {
+                    Plugin.Log.Error(dsEx, "Failed to create DirectSoundOut device as fallback");
+                    throw new InvalidOperationException("Failed to create both WaveOutEvent and DirectSoundOut devices", dsEx);
                 }
             }
         }
